@@ -25,7 +25,7 @@ add_executable(
 	src/structure_types.cpp
 
 	src/mainwindow.cpp
-)
+ "include/viewmodel.h" "src/viewmodel.cpp")
 target_include_directories(
 	highorbit_evaluation 
 	PRIVATE 

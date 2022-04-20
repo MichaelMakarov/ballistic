@@ -1,9 +1,3 @@
-[submodule "external/times"]
-	path = external/times
-	url = https://github.com/MichaelMakarov/times.git
-[submodule "external/maths"]
-	path = external/maths
-	url = https://github.com/MichaelMakarov/maths.git
 [submodule "external/wjson"]
 	path = external/wjson
 	url = https://github.com/mambaru/wjson.git

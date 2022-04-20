@@ -1,0 +1,10 @@
+function(create_maths_test filename)
+	set(executable_name ${filename})
+	add_executable(${executable_name} ${filename}.cpp)
+	add_test(NAME ${executable_name} COMMAND $<TARGET_FILE:${executable_name}>)
+	target_link_libraries(${executable_name} PRIVATE maths gtest gtest_main)
+endfunction()
+
+create_maths_test(vector_arithmetics_test)
+create_maths_test(matrix_arithmetics_test)
+create_maths_test(linalg_functions_test)

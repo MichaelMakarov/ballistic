@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?> 
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  <Type Name="math::vector">
+    <DisplayString>{{ size = {_size} }}</DisplayString>
+    <Expand>
+      <ArrayItems Condition="_elems != 0">
+        <Size>_size</Size>
+        <ValuePointer>_elems</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+  <Type Name="math::matrix">
+    <DisplayString>{{ rows = {_rows}, columns = {_cols} }}</DisplayString>
+    <Expand>
+      <CustomListItems Condition="_elems != 0">
+        <Variable Name="i" InitialValue="0"/>
+        <Loop Condition="i &lt; _rows">
+          <Item Name="row {i}">&amp;_elems[i * _cols], [_cols]</Item>
+          <Exec>++i</Exec>
+        </Loop>
+      </CustomListItems>
+    </Expand>
+  </Type>
+</AutoVisualizer>
