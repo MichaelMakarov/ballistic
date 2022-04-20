@@ -1,6 +1,8 @@
 #pragma once
 #include <structures.h>
 
+#include <static_matrix.h>
+
 namespace ball {
 	/// <summary>
 	/// Conversion from orthogonal coordinate system to spherical
@@ -56,7 +58,20 @@ namespace ball {
 	/// <param name="sidereal_time">sidereal time</param>
 	/// <param name="rotational_vel">angular velocity of rotation of the Earth</param>
 	math::vec<6> GCS_to_ACS(const math::vec<6>& vec, double sidereal_time, double rotational_vel);
-
+	/// <summary>
+	/// Computes the matrix of transform from greenwich to orbital coordinate system.
+	/// </summary>
+	/// <param name="r">a reference position vector</param>
+	/// <param name="v">a reference velocity vector</param>
+	/// <returns>matrix 3x3</returns>
+	math::mat3x3 GCS_to_OCS(math::vec3 r, math::vec3 v);
+	/// <summary>
+	/// Computes the matrix of transform from orbital coordinate system to greenwich.
+	/// </summary>
+	/// <param name="r">a reference position vector</param>
+	/// <param name="v">a reference velocity vector</param>
+	/// <returns>matrix 3x3</returns>
+	math::mat3x3 OCS_to_GCS(math::vec3 r, math::vec3 v);
 
 	/// <summary>
 	/// calculating orbital parameters from position and velocity

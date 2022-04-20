@@ -25,10 +25,14 @@ namespace ball {
 	};
 
 	template<egm_type type>
-	void load_harmonics(std::istream& instr) {
+	void load_harmonics_for(std::istream& instr) {
 		using egmc_t = egm_constants<type>;
 		egmc_t::harmonics.resize((egmc_t::count + 1) * (egmc_t::count + 2) / 2);
 		std::copy(std::istream_iterator<potential_harmonic>{ instr }, {}, egmc_t::harmonics.begin());
+	}
+	template<egm_type type>
+	void load_harmonics_for(std::istream&& instr) {
+		load_harmonics_for<type>(instr);
 	}
 	
 	/// <summary>
@@ -37,7 +41,7 @@ namespace ball {
 	/// <param name="x">x coordinate [m]</param>
 	/// <param name="y">y coordinate [m]</param>
 	/// <param name="z">z coordinate [m]</param>
-	/// <param name="rad">equatorial radius</param>
+	/// <param name="rad">equatorial radius [m]</param>
 	/// <param name="flat">polar flattening</param>
 	/// <returns>>height [m]</returns>
 	double height_above_ellipsoid(double x, double y, double z, double rad, double flat);
@@ -66,6 +70,13 @@ namespace ball {
 		constexpr static double flat{ 1.0 / 298.257223563 };
 		constexpr static size_t count{ 70 };
 		static std::vector<potential_harmonic> harmonics;
+
+		static void load_harmonics(std::istream& instr) {
+			load_harmonics_for<egm_type::JGM3>(instr);
+		}
+		void load_harmonics(std::istream&& instr) {
+			load_harmonics_for<egm_type::JGM3>(std::forward<std::istream>(instr));
+		}
 	};
 
 	template<>
@@ -77,6 +88,13 @@ namespace ball {
 		constexpr static double flat{ 1.0 / 298.257223563 };
 		constexpr static size_t count{ 360 };
 		static std::vector<potential_harmonic> harmonics;
+
+		static void load_harmonics(std::istream& instr) {
+			load_harmonics_for<egm_type::EGM96>(instr);
+		}
+		static void load_harmonics(std::istream&& instr) {
+			load_harmonics_for<egm_type::EGM96>(std::forward<std::istream>(instr));
+		}
 	};
 
 	template<>
@@ -88,6 +106,13 @@ namespace ball {
 		constexpr static double flat{ 1.0 / 298.257223563 };
 		constexpr static size_t count{ 2190 };
 		static std::vector<potential_harmonic> harmonics;
+
+		static void load_harmonics(std::istream& instr) {
+			load_harmonics_for<egm_type::EGM08>(instr);
+		}
+		void load_harmonics(std::istream&& instr) {
+			load_harmonics_for<egm_type::EGM08>(std::forward<std::istream>(instr));
+		}
 	};
 
 	using JGM3 = egm_constants<egm_type::JGM3>;

@@ -113,7 +113,7 @@ void read_compute_settings(const std::string& filename, compute_settings& settin
 void read_potential_harmonics(const std::string& filename)
 {
 	auto fin = open_infile(filename);
-	ball::load_harmonics<ball::egm_type::EGM96>(fin);
+	ball::load_harmonics_for<ball::egm_type::EGM96>(fin);
 }
 
 void read_measurements(std::istream& is, const std::string& dtformat, std::list<measurement_t>& measurements, ball::motion_params<6>& mp)

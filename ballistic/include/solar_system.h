@@ -27,11 +27,6 @@ namespace ball {
 	/// Interface describes parameters of the Earth and provides methods for computation.
 	/// </summary>
 	class solar_model {
-		friend double sidereal_time_mean(const JD& jd);
-		friend double sidereal_time_true(const JD& jd);
-	private:
-		XYZ _ortpos;
-		RIA _sphpos;
 	public:
 		/// <summary>
 		/// Computes solar position.
@@ -65,25 +60,12 @@ namespace ball {
 		/// </summary>
 		/// <returns></returns>
 		static constexpr inline double solar_pressure() { return 4.56e-6; }
-	private:
-		constexpr static double ecl_mean_anomaly(double jc) {
-			return 6.24003594 + (628.30195602 - (2.7974e-6 + 5.82e-8 * jc) * jc) * jc;
-		}
-		constexpr static double ecliptic_mean_incl(double jc) {
-			return 0.4090928042 - (0.2269655e-3 + (0.29e-8 - 0.88e-8 * jc) * jc) * jc;
-		}
-		/// difference between lunar and solar ecliptic longitudes
-		constexpr static double ecl_delta_lslong(double jc) {
-			return 5.19846951 + (7771.37714617 - (3.34085e-5 - 9.21e-8 * jc) * jc) * jc;
-		}
 	};
 	
 	/// <summary>
 	/// Interface describes parameters of the Earth and provides methods for computation.
 	/// </summary>
 	class lunar_model {
-		friend double sidereal_time_mean(const JD& jd);
-		friend double sidereal_time_true(const JD& jd);
 	public:
 		/// <summary>
 		/// Copmutes lunar position.
@@ -96,23 +78,21 @@ namespace ball {
 		/// Gravitational parameter
 		/// </summary>
 		/// <returns></returns>
-		static constexpr double mu() { return 4.90486959e12; }
-	private:
-		constexpr double ecl_mean_anomaly(double jc) {
-			return 2.355548393 + (8328.69142288 + (1.517952e-1 + 3.103e-7 * jc) * jc) * jc;
-		}
-		/// ecliptic lunar argument of latitude
-		constexpr static double ecl_mean_latarg(double jc) {
-			return 1.62790193 + (8433.46615831 - (6.42717e-5 - 5.33e-8 * jc) * jc) * jc;
-		}
-		/// ecliptic mean longitude of lunar ascending node
-		constexpr static double ecl_mean_ascnode_long(double jc) {
-			return 2.182438624 - (33.757045936 - (3.61429e-5 + 3.88e-8 * jc) * jc) * jc;
-		}
-		/// difference between lunar and solar ecliptic longitudes
-		constexpr static double ecl_delta_lslong(double jc) {
-			return 5.19846951 + (7771.37714617 - (3.34085e-5 - 9.21e-8 * jc) * jc) * jc;
-		}
-		
+		static constexpr double mu() { return 4.90486959e12; }		
 	};
+
+	/// <summary>
+	/// Computes solar position in GCS.
+	/// </summary>
+	/// <param name="jd">a julian date refered to midnight</param>
+	/// <returns>3d vector</returns>
+	XYZ solar_position(const JD& jd);
+	/// <summary>
+	/// Computes lunar position in GCS.
+	/// </summary>
+	/// <param name="jd">a julian date refered to midnight</param>
+	/// <returns>3d vector</returns>
+	XYZ lunar_position(const JD& jd);
+
+	double sidereal_time_mean(const JD& jd);
 }

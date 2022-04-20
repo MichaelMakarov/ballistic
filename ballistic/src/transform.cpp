@@ -108,4 +108,58 @@ namespace ball {
 		osc.periapsis = osc.trueanomaly - osc.latitudearg;
 		return osc;
 	}
+
+	enum class transform_type {
+		FORWARD, BACKWARD
+	};
+
+	template<transform_type type>
+	math::mat3x3 GCS_to_OCS_impl(math::vec3& r, math::vec3& v)
+	{
+		math::mat3x3 mx;
+		math::normalize(r);
+		math::normalize(v);
+		const auto& b = math::cross(r, v);
+		const auto& l = math::cross(r, b);
+		if constexpr (type == transform_type::FORWARD) {
+			for (size_t i{}; i < 3; ++i) {
+				mx(0, i) = r[i];
+				mx(1, i) = b[i];
+				mx(2, i) = l[i];
+			}
+		}
+		else {
+			for (size_t i{}; i < 3; ++i) {
+				mx(i, 0) = r[i];
+				mx(i, 1) = b[i];
+				mx(i, 2) = l[i];
+			}
+		}
+		return mx;
+	}
+
+	math::mat3x3 GCS_to_OCS(const math::vec<6>& rv)
+	{
+		math::mat3x3 mx;
+		auto r = math::slice<0, 2>(rv);
+		math::normalize(r);
+		for (size_t i{}; i < 3; ++i) mx(0, i) = r[i];
+		auto l = -math::slice<3, 5>(rv);
+		math::normalize(l);
+		l = math::cross(r, l);
+		for (size_t i{}; i < 3; ++i) mx(1, i) = l[i];
+		l = math::cross(r, l);
+		for (size_t i{}; i < 3; ++i) mx(2, i) = l[i];
+		return mx;
+	}
+
+	math::mat3x3 GCS_to_OCS(math::vec3 r, math::vec3 v)
+	{
+		return GCS_to_OCS_impl<transform_type::FORWARD>(r, v);
+	}
+
+	math::mat3x3 OCS_to_GCS(math::vec3 r, math::vec3 v)
+	{
+		return GCS_to_OCS_impl<transform_type::BACKWARD>(r, v);
+	}
 }
