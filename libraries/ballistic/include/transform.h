@@ -1,84 +1,217 @@
 #pragma once
-#include <structures.h>
 
-#include <static_matrix.h>
+/**
+ * @brief Математические координаты
+ *
+ */
+enum struct mathematical {
+	/**
+	 * @brief Ортогональная
+	 *
+	 */
+	orthogonal,
+	/**
+	 * @brief Сферическая
+	 *
+	 */
+	spherical
+};
+/**
+ * @brief Система координат
+ *
+ */
+enum struct astronomical {
+	/**
+	 * @brief Абсолютная
+	 *
+	 */
+	absolute,
+	/**
+	 * @brief Гринвическая
+	 *
+	 */
+	greenwich,
+	/**
+	 * @brief Эклиптическая
+	 *
+	 */
+	ecliptic
+};
+constexpr auto ort_cs = mathematical::orthogonal;
+constexpr auto sph_cs = mathematical::spherical;
+constexpr auto abs_cs = astronomical::absolute;
+constexpr auto grw_cs = astronomical::greenwich;
+constexpr auto ecl_cs = astronomical::ecliptic;
 
-namespace ball {
-	/// <summary>
-	/// Conversion from orthogonal coordinate system to spherical
-	/// </summary>
-	/// <param name="vec"> - a vector (x,y,z)</param>
-	/// <returns>a vector (radius, latitude or inclination, longitude or ascension)</returns>
-	math::vec3 ort_to_sph(const math::vec3& vec);
-	/// <summary>
-	/// Conversion the vector from spherical coordinate system to orthogonal
-	/// </summary>
-	/// <param name="vec"> - a vector  (radius, latitude or inclination, longitude or ascension)</param>
-	/// <returns>a vector (x,y,z)</returns>
-	math::vec3 sph_to_ort(const math::vec3& vec);
-	/// <summary>
-	/// Conversion from GCS to ACS
-	/// </summary>
-	/// <param name="vec"> - a vector (x,y,z)</param>
-	/// <param name="t"> - sidereal time</param>
-	/// <returns></returns>
-	math::vec3 ACS_to_GCS(const math::vec3& vec, double sidereal_time);
-	/// <summary>
-	/// Conversion from GCS to ACS
-	/// </summary>
-	/// <param name="vec"> - a vector (x,y,z)</param>
-	/// <param name="t"> - sidereal time</param>
-	/// <returns></returns>
-	math::vec3 GCS_to_ACS(const math::vec3& vec, double sidereal_time);
-	/// <summary>
-	/// conversion from ecliptic coordinate system to absolute
-	/// </summary>
-	/// <param name="vec"> - a vector (x, y, z)</param>
-	/// <param name="e"> - ecliptic inclination</param>
-	/// <returns>a vector (x, y, z) in ACS</returns>
-	math::vec3 ECS_to_ACS(const math::vec3& vec, double ecl_incl);
-	/// <summary>
-	/// conversion from absolute coordinate system to ecliptic
-	/// </summary>
-	/// <param name="vec"> - a vector (x, y, z)</param>
-	/// <param name="e"> - ecliptic inclination</param>
-	/// <returns>a vector (x, y, z) in ECS</returns>
-	math::vec3 ACS_to_ECS(const math::vec3& vec, double ecl_incl);
-	/// <summary>
-	/// Converts vector from absolute coordinate system to greenwich.
-	/// </summary>
-	/// <param name="vec">6d vector that stores position and velocity</param>
-	/// <param name="sidereal_time">sidereal time</param>
-	/// <param name="rotational_vel">angular velocity of rotation of the Earth</param>
-	math::vec<6> ACS_to_GCS(const math::vec<6>& vec, double sidereal_time, double rotational_vel);
-	/// <summary>
-	/// Converts vector from greenwich coordinate system to absolute.
-	/// </summary>
-	/// <param name="vec">6d vector that stores position and velocity</param>
-	/// <param name="sidereal_time">sidereal time</param>
-	/// <param name="rotational_vel">angular velocity of rotation of the Earth</param>
-	math::vec<6> GCS_to_ACS(const math::vec<6>& vec, double sidereal_time, double rotational_vel);
-	/// <summary>
-	/// Computes the matrix of transform from greenwich to orbital coordinate system.
-	/// </summary>
-	/// <param name="r">a reference position vector</param>
-	/// <param name="v">a reference velocity vector</param>
-	/// <returns>matrix 3x3</returns>
-	math::mat3x3 GCS_to_OCS(math::vec3 r, math::vec3 v);
-	/// <summary>
-	/// Computes the matrix of transform from orbital coordinate system to greenwich.
-	/// </summary>
-	/// <param name="r">a reference position vector</param>
-	/// <param name="v">a reference velocity vector</param>
-	/// <returns>matrix 3x3</returns>
-	math::mat3x3 OCS_to_GCS(math::vec3 r, math::vec3 v);
+template<
+	astronomical from_a, mathematical from_m,
+	astronomical to_a, mathematical to_m>
+struct transform;
 
-	/// <summary>
-	/// calculating orbital parameters from position and velocity
-	/// </summary>
-	/// <param name="pos">is a position vector in absolute cartesian coordinate system</param>
-	/// <param name="vel">is a velocity vector in absolute cartesian coordinate system</param>
-	/// <param name="mu">is a gravitational parameter</param>
-	/// <returns>a struct of orbital parameters</returns>
-	orbital_params orbparams_from_motionvec(const math::vec3& pos, const math::vec3& vel, double mu);
-}
+/**
+ * @brief Преобразование между сферической и ортогональной АСК
+ */
+template<>
+struct transform<abs_cs, sph_cs, abs_cs, ort_cs> {
+	/**
+	 * @brief Преобразование из сферической в ортогональную АСК
+	 *
+	 * @param in вектор (радиус, склонение, прямое восхождение)
+	 * @param out вектор (x, y, z)
+	 */
+	static void forward(const double* const in, double* const out);
+	/**
+	 * @brief Преобразование из ортогональной в сферическую АСК
+	 *
+	 * @param in вектор (x, y, z)
+	 * @param out вектор (радиус, склонение, прямое восхождение)
+	 */
+	static void backward(const double* const in, double* const out);
+};
+/**
+ * @brief Преобразование между сферической и ортогональной ГСК
+ */
+template<>
+struct transform<grw_cs, sph_cs, grw_cs, ort_cs> {
+	/**
+	 * @brief Преобразование из сферической в ортогональную ГСК
+	 *
+	 * @param in вектор (радиус, широта, долгота)
+	 * @param out вектор (x, y, z)
+	 */
+	static void forward(const double* const in, double* const out);
+	/**
+	 * @brief Преобразование из ортогональной в сферическую ГСК
+	 *
+	 * @param in вектор (x, y, z)
+	 * @param out вектор (радиус, широта, долгота)
+	 */
+	static void backward(const double* const in, double* const out);
+};
+/**
+ * @brief Преобразование между АСК и ГСК
+ */
+template<>
+struct transform<abs_cs, ort_cs, grw_cs, ort_cs> {
+	/**
+	 * @brief Преобразование из АСК в ГСК
+	 *
+	 * @param in вектор в АСК (x, y, z)
+	 * @param t звёздное время
+	 * @param out вектор в ГСК (x, y, z)
+	 */
+	static void forward(const double* const in, double t, double* const out);
+	/**
+	 * @brief Преобразование из ГСК в АСК
+	 *
+	 * @param in вектор в ГСК (x, y, z)
+	 * @param t звёздное время
+	 * @param out вектор в АСК (x, y, z)
+	 */
+	static void backward(const double* const in, double t, double* const out);
+	/**
+	 * @brief Преобразование из АСК в ГСК
+	 *
+	 * @param in вектор в АСК (x, y, z, vx, vy, vz)
+	 * @param t звёздное время
+	 * @param out вектор в ГСК (x, y, z, vx, vy, vz)
+	 */
+	static void forward(const double* const in, double t, double w, double* const out);
+	/**
+	 * @brief Преобразование из ГСК в АСК
+	 *
+	 * @param in вектор в ГСК (x, y, z, vx, vy, vz)
+	 * @param t звёздное время
+	 * @param out вектор в АСК (x, y, z, vx, vy, vz)
+	 */
+	static void backward(const double* const in, double t, double w, double* const out);
+};
+/**
+ * @brief Преобразование между АСК и ГСК
+ */
+template<>
+struct transform<abs_cs, sph_cs, grw_cs, sph_cs> {
+	/**
+	 * @brief Преобразование из АСК в ГСК
+	 *
+	 * @param in вектор (радиус, склонение, прямое восхождение)
+	 * @param t звёздное время
+	 * @param out вектор (радиус, широта, долгота)
+	 */
+	static void forward(const double* const in, double t, double* const out);
+	/**
+	 * @brief Преобразование из ГСК в АСК
+	 *
+	 * @param in вектор (радиус, широта, долгота)
+	 * @param t звёздное время
+	 * @param out вектор (радиус, склонение, прямое восхождение)
+	 */
+	static void backward(const double* const in, double t, double* const out);
+};
+/**
+ * @brief Преобразование между АСК и ГСК
+ */
+template<>
+struct transform<abs_cs, sph_cs, grw_cs, ort_cs> {
+	/**
+	 * @brief Преобразование из АСК в ГСК
+	 *
+	 * @param in вектор (радиус, склонение, прямое восхождение)
+	 * @param t звёздное время
+	 * @param out вектор (x, y, z)
+	 */
+	static void forward(const double* const in, double t, double* const out);
+	/**
+	 * @brief Преобразование из ГСК в АСК
+	 *
+	 * @param in вектор (x, y, z)
+	 * @param t звёздное время
+	 * @param out вектор (радиус, склонение, прямое восхождение)
+	 */
+	static void backward(const double* const in, double t, double* const out);
+};
+/**
+ * @brief Преобразование между АСК и ГСК
+ */
+template<>
+struct transform<abs_cs, ort_cs, grw_cs, sph_cs> {
+	/**
+	 * @brief Преобразование из АСК в ГСК
+	 *
+	 * @param in вектор (x, y, z)
+	 * @param t звёздное время
+	 * @param out вектор (радиус, широта, долгота)
+	 */
+	static void forward(const double* const in, double t, double* const out);
+	/**
+	 * @brief Преобразование из ГСК в АСК
+	 *
+	 * @param in вектор (радиус, широта, долгота)
+	 * @param t звёздное время
+	 * @param out вектор (x, y, z)
+	 */
+	static void backward(const double* const in, double t, double* const out);
+};
+
+/**
+ * @brief Преобразование между АСК и эклиптической СК
+ */
+template<>
+struct transform<abs_cs, sph_cs, ecl_cs, sph_cs> {
+	/**
+	 * @brief Преобразование из АСК в эклиптическую СК
+	 *
+	 * @param in вектор (радиус, склонение, прямое восхождение)
+	 * @param e наклон эклиптики к экватору
+	 * @param out вектор (радиус, широта, долгота)
+	 */
+	static void forward(const double* const in, double e, double* const out);
+	/**
+	 * @brief Преобразование из эклиптической СК и АСК
+	 *
+	 * @param in вектор (радиус, широта, долгота)
+	 * @param e наклон эклиптики к экватору
+	 * @param out вектор (радиус, склонение, прямое восхождение)
+	 */
+	static void backward(const double* const in, double e, double* const out);
+};

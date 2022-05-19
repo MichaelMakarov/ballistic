@@ -11,3 +11,12 @@ function (update_submodules required_submodules update_options)
 		endforeach()
 	endif()
 endfunction()
+
+function(add_external_project projname srcdir)
+	ExternalProject_Add(
+		${projname}
+		SOURCE_DIR ${srcdir}
+		PREFIX ${projname}
+		INSTALL_COMMAND ""
+	)
+endfunction()

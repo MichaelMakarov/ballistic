@@ -4,10 +4,14 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 project(ballistic_projects)
 
+
 include(scripts/functions.cmake)
 
 set(required_submodules wjson)
 update_submodules(${required_submodules} --init --recursive)
 
+include(ExternalProject)
+
+#add_external_project(highorbit_evaluation ${CMAKE_CURRENT_SOURCE_DIR}/horbeval)
 add_subdirectory(libraries)
-add_subdirectory(projects)
+add_subdirectory(horbeval)

@@ -1,12 +1,14 @@
 add_library(
-	ballistic 
-	STATIC
-	src/atmosphere1981.cpp 
-	src/atmosphere2004.cpp
-	src/egm.cpp
-	src/solar_system.cpp
-	src/geopotential.cpp
+	ballistic STATIC
+
+	src/jd.cpp
+	src/gpt.cpp
 	src/transform.cpp
+	src/sunmoon.cpp
 )
-target_include_directories(ballistic PUBLIC include)
-target_link_libraries(ballistic PUBLIC maths times)
+target_include_directories(
+	ballistic PUBLIC include
+)
+target_link_libraries(
+	ballistic PUBLIC maths times
+)
