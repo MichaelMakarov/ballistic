@@ -13,5 +13,5 @@ update_submodules(${required_submodules} --init --recursive)
 include(ExternalProject)
 
 #add_external_project(highorbit_evaluation ${CMAKE_CURRENT_SOURCE_DIR}/horbeval)
-add_subdirectory(libraries)
+add_subdirectory(ballistic)
 add_subdirectory(horbeval)

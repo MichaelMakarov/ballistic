@@ -1,7 +1,7 @@
 #pragma once
 #include <observation.h>
 
-#include <arithmetics.h>
+#include <maths.h>
 
 #include <qabstractitemmodel.h>
 #include <qcolor.h>

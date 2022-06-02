@@ -3,11 +3,8 @@
 
 #include <interface.h>
 
-#include <forecast.h>
-
 #include <assertion.h>
-#include <conversion.h>
-#include <statistics.h>
+#include <maths.h>
 
 #include <fstream>
 #include <iomanip>
@@ -73,12 +70,12 @@ void mainmodel::set_interval(const QDateTime& tn, const QDateTime& tk)
 constexpr inline size_t min_required_count{ 3 };
 #define check_distance(beg, end, msg) ASSERT(std::distance(beg, end) >= min_required_count, msg);
 
-residuals_info compute_residuals(const forecast<6>& f, measurement_iter beg, measurement_iter end)
+residuals_info compute_residuals(const forecast& f, measurement_iter beg, measurement_iter end)
 {
     residuals_info res;
     res.array.resize(std::distance(beg, end));
     for (size_t i{}; beg != end; ++beg, ++i) {
-        auto mp = f.params(beg->t);
+        auto mp = f.point(beg->t);
         double tmp{};
         for (size_t k{}; k < 3; ++k) {
             tmp += sqr(mp.v[k] - beg->v[k]);
@@ -102,6 +99,7 @@ QDateTime mainmodel::tk() const {
 void mainmodel::compute(computation* const info, const QString& filename) const
 {
     try {
+        ASSERT(!EGM96::harmonics.empty(), "Гармоники геопотенциала Земли не загружены.");
         file_logger log;
         if (!filename.isEmpty()) log = file_logger(filename);
         info->reset();
@@ -143,7 +141,7 @@ void mainmodel::compute(computation* const info, const QString& filename) const
         }
 
         info->init_motion.v = mp.v;
-        info->init_motion.r = compute_residuals(make_forecast<basic_motion_model>(mp, tk), beg_orb, end_orb);
+        info->init_motion.r = compute_residuals(make_forecast(mp, tk), beg_orb, end_orb);
         info->init_motion_info_updated();
         
         log << std::endl;
@@ -172,7 +170,7 @@ void mainmodel::compute(computation* const info, const QString& filename) const
         }
         log << std::endl;
 
-        rotational_params rp = estimate_rotation(mp, beg_rot, end_rot, { 0, 0, 1 }, log.rdbuf());
+        rotational_params rp = estimate_rotation(mp, _tk, beg_rot, end_rot, { 0, 0, 1 }, log.rdbuf());
         info->rotation.axis = rp.axis;
         info->rotation.vel = rp.vel;
         info->rotation_info_updated();
@@ -200,7 +198,7 @@ void mainmodel::compute(computation* const info, const QString& filename) const
         }
 
     } catch (const std::exception& error) {
-        throw std::runtime_error(format("Во время расчёта произошла ошибка! %", error.what()));
+        throw std::runtime_error(format("Расчёт завершен некорректно. %", error.what()));
     }
 }
 

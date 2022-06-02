@@ -50,7 +50,7 @@ public:
 public:
     explicit basic_motion_model(size_t harmonics);
 
-	vec6 acceleration(const vec6& v, const time_h& t);
+	vec6 operator()(const vec6& v, const time_h& t);
 };
 /**
  * @brief Расширенная модель движения центра масс
@@ -62,5 +62,5 @@ class extended_motion_model : public basic_motion_model {
 public:
     extended_motion_model(size_t harmonics, const rotational_params& rp, const object_model* const obj);
 
-	vec6 acceleration(const vec6& v, const time_h& t);
+	vec6 operator()(const vec6& v, const time_h& t);
 };

@@ -1,36 +1,17 @@
 #pragma once
-#include <forecast.h>
+#include <integration.h>
 
 #include <optimize.h>
 
 #include <observation.h>
 #include <highorbit.h>
 
-/**
- * @brief Вычисление параметров движения
- * 
- * @tparam M модель движения
- * @tparam Args доп параметры
- * @param mp нач. параметры движения
- * @param tk кон. момент времени
- * @param args параметры инициализации модели движения
- * @return прогноз
- */
-template<typename M, typename ... Args>
-forecast<6> make_forecast(const motion_params& mp, time_h tk, const Args&...args)
-{
-    constexpr size_t harmonics{ 16 };
-    M model{ harmonics, args... };
-	forecast<6> f;
-    f.run(
-        mp, tk,
-		[&model](const vec6& v, const time_h& t){ return model.acceleration(v, t); }
-    );
-    return f;
-}
+using motion_params = integratable_point<vec6, time_h>;
+using forecast = integration_interface<vec6, time_h, double>;
 
-forecast<6> make_forecast(const motion_params& mp, time_h tk);
-forecast<6> make_forecast(const motion_params& mp, time_h tk, const rotational_params& rp, const round_plane_info& info);
+
+forecast make_forecast(const motion_params& mp, time_h tk);
+forecast make_forecast(const motion_params& mp, time_h tk, const rotational_params& rp, const round_plane_info& info);
 
 using measurement_iter = iterator_t<orbit_observation>;
 /**
@@ -86,6 +67,7 @@ using observation_iter = iterator_t<rotation_observation>;
  * @brief 
  * 
  * @param mp параметры движения
+ * @param tk конечное время
  * @param beg начало измерений
  * @param end конец измерений
  * @param v нач. вектор
@@ -93,6 +75,6 @@ using observation_iter = iterator_t<rotation_observation>;
  * @return параметры вращения
  */
 rotational_params estimate_rotation(
-    const motion_params& mp, observation_iter beg, observation_iter end, const vec3& v,
+    const motion_params& mp, time_h tk, observation_iter beg, observation_iter end, const vec3& v,
     std::streambuf* strbuf
 );

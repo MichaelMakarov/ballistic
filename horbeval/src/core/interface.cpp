@@ -1,12 +1,34 @@
 #include <interface.h>
 #include <future>
 
-forecast<6> make_forecast(const motion_params& mp, time_h tk)
+
+/**
+ * @brief Вычисление параметров движения
+ * 
+ * @tparam M модель движения
+ * @tparam Args доп параметры
+ * @param mp нач. параметры движения
+ * @param tk кон. момент времени
+ * @param args параметры инициализации модели движения
+ * @return прогноз
+ */
+template<typename M, typename ... Args>
+auto make_forecast(const motion_params& mp, time_h tk, const Args&...args)
+{
+    constexpr size_t harmonics{ 16
+     };
+    M model{ harmonics, args... };
+	forecast f;
+    f.run(mp, tk, model, 30);
+    return f;
+}
+
+forecast make_forecast(const motion_params& mp, time_h tk)
 {
     return make_forecast<basic_motion_model>(mp, tk);
 }
 
-forecast<6> make_forecast(const motion_params& mp, time_h tk, const rotational_params& rp, const round_plane_info& info)
+forecast make_forecast(const motion_params& mp, time_h tk, const rotational_params& rp, const round_plane_info& info)
 {
     auto obj = make_round_plane(info);
     return make_forecast<extended_motion_model, const rotational_params&, const object_model*>(mp, tk, rp, &obj);
@@ -52,7 +74,7 @@ void basic_linear_interface::compute(std::vector<array_view<3>>& resid, std::vec
         posvar, posvar, posvar, velvar, velvar, velvar
     };
     auto compute_func = &make_forecast<basic_motion_model>;
-    std::array<std::future<forecast<6>>, 6> forecasts;
+    std::array<std::future<forecast>, 6> forecasts;
     for (size_t i{}; i < forecasts.size(); ++i) {
         auto mp = _mp;
         mp.v[i] += variations[i];
@@ -63,7 +85,7 @@ void basic_linear_interface::compute(std::vector<array_view<3>>& resid, std::vec
     std::vector<motion_params> mplist(resid.size());
     size_t point_index{};
     for (auto it = _beg; it != _end; ++it, ++point_index) {        
-        mplist[point_index] = forecast.params(it->t);        
+        mplist[point_index] = forecast.point(it->t);        
         for (size_t coord_index{}; coord_index < 3; ++coord_index) {
             resid[point_index][coord_index] = it->v[coord_index] - mplist[point_index].v[coord_index];
         }
@@ -72,7 +94,7 @@ void basic_linear_interface::compute(std::vector<array_view<3>>& resid, std::vec
     for (size_t param_index{}; param_index < forecasts.size(); ++param_index) {
         forecast = forecasts[param_index].get();
         for (point_index = 0; point_index < mplist.size(); ++point_index) {
-            auto mp = forecast.params(mplist[point_index].t);
+            auto mp = forecast.point(mplist[point_index].t);
             for (size_t coord_index{}; coord_index < 3; ++coord_index) {
                 deriv[point_index][param_index][coord_index] =
                     (mp.v[coord_index] - mplist[point_index].v[coord_index]) / variations[param_index];
@@ -100,7 +122,7 @@ void extended_linear_interface::compute(std::vector<array_view<3>>& resid, std::
         posvar, posvar, posvar, velvar, velvar, velvar, surfvar
     };
     auto compute_func = &make_forecast<extended_motion_model, const rotational_params&, const object_model*>;
-    std::array<std::future<forecast<6>>, 7> forecasts;
+    std::array<std::future<forecast>, 7> forecasts;
     auto obj = make_round_plane(_plane);
     for (size_t i{}; i < forecasts.size() - 1; ++i) {
         auto mp = _mp;
@@ -116,7 +138,7 @@ void extended_linear_interface::compute(std::vector<array_view<3>>& resid, std::
     std::vector<motion_params> mplist(resid.size());
     size_t point_index{};    
     for (auto it = _beg; it != _end; ++it, ++point_index) {        
-        mplist[point_index] = forecast.params(it->t);        
+        mplist[point_index] = forecast.point(it->t);        
         for (size_t coord_index{}; coord_index < 3; ++coord_index) {
             resid[point_index][coord_index] = it->v[coord_index] - mplist[point_index].v[coord_index];
         }
@@ -125,7 +147,7 @@ void extended_linear_interface::compute(std::vector<array_view<3>>& resid, std::
     for (size_t param_index{}; param_index < forecasts.size(); ++param_index) {
         forecast = forecasts[param_index].get();
         for (point_index = 0; point_index < mplist.size(); ++point_index) {
-            auto mp = forecast.params(mplist[point_index].t);
+            auto mp = forecast.point(mplist[point_index].t);
             for (size_t coord_index{}; coord_index < 3; ++coord_index) {
                 deriv[point_index][param_index][coord_index] =
                     (mp.v[coord_index] - mplist[point_index].v[coord_index]) / variations[param_index];
@@ -164,19 +186,18 @@ vec3 normal(const rotation_observation& o, const vec6& v)
     return normal(o.t, o.o, v.data());
 }
 
-#include <arithmetics.h>
-#include <conversion.h>
+#include <maths.h>
 
 rotational_params estimate_rotation(
-    const motion_params& mp, observation_iter beg, observation_iter end, const vec3& v,
+    const motion_params& mp, time_h tk, observation_iter beg, observation_iter end, const vec3& v,
     std::streambuf* strbuf
 )
 {
     using transform_t = transform<abs_cs, sph_cs, abs_cs, ort_cs>;
     wrapping_logger log{ strbuf };
     auto tn = beg->t;
-    auto f = make_forecast<basic_motion_model>(mp, (end - 1)->t);
-    auto norm = normal(*beg, f.params(tn).v);
+    auto f = make_forecast(mp, tk);
+    auto norm = normal(*beg, f.point(tn).v);
     size_t count = std::distance(++beg, end);
 
     double time{};
@@ -186,7 +207,7 @@ rotational_params estimate_rotation(
     log << "Оценка параметров вращения по измерениям в кол-ве " << count << std::endl;
 
     for (; beg != end; ++beg) {
-        auto [axis, angle] = from_quaternion(rotation(norm, normal(*beg, f.params(beg->t).v)));
+        auto [axis, angle] = from_quaternion(rotation(norm, normal(*beg, f.point(beg->t).v)));
         // ось z оси вращения должна быть положительной
         if (axis[2] < 0) {
             axis = -axis;

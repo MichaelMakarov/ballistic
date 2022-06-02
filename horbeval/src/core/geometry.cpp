@@ -1,6 +1,5 @@
 #include <geometry.h>
-#include <conversion.h>
-#include <arithmetics.h>
+#include <maths.h>
 
 double round_plane_info::square() const
 {

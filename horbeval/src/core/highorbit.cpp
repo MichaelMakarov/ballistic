@@ -1,5 +1,5 @@
 #include <highorbit.h>
-#include <arithmetics.h>
+#include <maths.h>
 #include <assertion.h>
 
 basic_motion_model::basic_motion_model(size_t harmonics)
@@ -10,7 +10,7 @@ basic_motion_model::basic_motion_model(size_t harmonics)
 	_gpt = geopotential(EGM96{}, harmonics);
 }
 
-vec6 basic_motion_model::acceleration(const vec6& v, const time_h& t)
+vec6 basic_motion_model::operator()(const vec6& v, const time_h& t)
 {
     double w2 = sqr(_w);	
     double h = height_above_ellipsoid(v.data(), _rad, _fl);
@@ -121,9 +121,9 @@ extended_motion_model::extended_motion_model(
 
 #include <transform.h>
 
-vec6 extended_motion_model::acceleration(const vec6& v, const time_h& t)
+vec6 extended_motion_model::operator()(const vec6& v, const time_h& t)
 {
-    auto ac = basic_motion_model::acceleration(v, t);
+    auto ac = basic_motion_model::operator()(v, t);
 
     vec3 sun;
     solar_model::coordinates(t, sun.data());
