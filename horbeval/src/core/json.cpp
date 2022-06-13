@@ -222,6 +222,7 @@ rotation_observation_provider::rotation_observation_provider(std::istream&& ostr
 
 		for (const auto& m : s.track) {
 			rotation_observation o;
+			o.id = observ->id;
 			o.t = tn + m[0];
 			o.o[0] = observ->x;
 			o.o[1] = observ->y;

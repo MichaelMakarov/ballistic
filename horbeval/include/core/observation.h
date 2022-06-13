@@ -23,7 +23,12 @@ struct orbit_observation {
  */
 struct rotation_observation {
     /**
-     * @brief Вектор наблюдателя в АСК (x, y, z)
+     * @brief ID обсерватории
+     * 
+     */
+    std::string id;
+    /**
+     * @brief Вектор обсерватории в ГСК (x, y, z)
      * 
      */
     double o[3];

@@ -33,8 +33,12 @@ QString tle_tablemodel::data(int row, int col) const
     auto& obs = *(_beg + row);
     switch (col) {
         case 0: return QString::fromStdString(format("%", obs.t));
-        case 1: case 2: case 3: case 4: case 5: case 6: 
-            return number_to_str(obs.v[col - 1]);
+        case 1: return number_to_str(obs.v[0]);
+        case 2: return number_to_str(obs.v[1]);
+        case 3: return number_to_str(obs.v[2]);
+        case 4: return number_to_str(obs.v[3]);
+        case 5: return number_to_str(obs.v[4]);
+        case 6: return number_to_str(obs.v[5]);
         default: return {};
     }
 }
@@ -69,16 +73,19 @@ QString tle_tablemodel::header(int col) const
 
 int obs_tablemodel::columnCount(const QModelIndex&) const 
 {
-    return 5;
+    return 6;
 }
 
 QString obs_tablemodel::data(int row, int col) const
 {
     auto& obs = *(_beg + row);
     switch (col) {
-        case 0: return QString::fromStdString(format("%", obs.t));
-        case 1: case 2: case 3: return number_to_str(obs.o[col - 1]);
-        case 4: return number_to_str(obs.s);
+        case 0: return QString::fromStdString(obs.id);
+        case 1: return QString::fromStdString(format("%", obs.t));
+        case 2: return number_to_str(obs.o[0]);
+        case 3: return number_to_str(obs.o[1]);
+        case 4: return number_to_str(obs.o[2]);
+        case 5: return number_to_str(obs.s);
         default: return {};
     }
 }
@@ -87,10 +94,10 @@ int obs_tablemodel::alignment(int col) const
 {
     int alignment = Qt::AlignmentFlag::AlignVCenter;
     switch (col) {
-        case 0: 
+        case 0: case 1:
             alignment += Qt::AlignmentFlag::AlignLeft;
             break;
-        case 1: case 2: case 3: case 4:
+        case 2: case 3: case 4: case 5:
             alignment += Qt::AlignmentFlag::AlignRight;
             break;
     }
@@ -100,11 +107,12 @@ int obs_tablemodel::alignment(int col) const
 QString obs_tablemodel::header(int col) const
 {
     switch (col) {
-        case 0: return "T";
-        case 1: return "X, м";
-        case 2: return "Y, м";
-        case 3: return "Z, м";
-        case 4: return "Зв. величина";
+        case 0: return "ID";
+        case 1: return "T";
+        case 2: return "X, м";
+        case 3: return "Y, м";
+        case 4: return "Z, м";
+        case 5: return "Зв. величина";
         default: return {};
     }
 }

@@ -15,8 +15,7 @@
 template<typename M, typename ... Args>
 auto make_forecast(const motion_params& mp, time_h tk, const Args&...args)
 {
-    constexpr size_t harmonics{ 16
-     };
+    constexpr size_t harmonics{ 16 };
     M model{ harmonics, args... };
 	forecast f;
     f.run(mp, tk, model, 30);
@@ -188,25 +187,61 @@ vec3 normal(const rotation_observation& o, const vec6& v)
 
 #include <maths.h>
 
+/**
+ * @brief Дескриптор вращения вокруг оси
+ * 
+ */
+struct rotation_descriptor {
+    /**
+     * @brief Время
+     * 
+     */
+    double t;
+    /**
+     * @brief Наклонение оси
+     * 
+     */
+    double i;
+    /**
+     * @brief Прямое восхождение оси
+     * 
+     */
+    double a;
+    /**
+     * @brief Фазовый угол вращения
+     * 
+     */
+    double p;
+};
+
+auto estimate(std::list<rotation_descriptor>& list) 
+{
+    double time{}, vel{}, incl{}, asc{};
+    for (const auto& elem : list) {
+        time += sqr(elem.t);
+        vel += elem.t * elem.p;
+        incl += elem.i;
+        asc += elem.a;
+    }
+    return std::make_tuple(incl / list.size(), asc / list.size(), vel / time);
+}
+
 rotational_params estimate_rotation(
     const motion_params& mp, time_h tk, observation_iter beg, observation_iter end, const vec3& v,
     std::streambuf* strbuf
 )
 {
     using transform_t = transform<abs_cs, sph_cs, abs_cs, ort_cs>;
+
     wrapping_logger log{ strbuf };
     auto tn = beg->t;
     auto f = make_forecast(mp, tk);
-    auto norm = normal(*beg, f.point(tn).v);
-    size_t count = std::distance(++beg, end);
+    auto norm = normal(*beg++, f.point(tn).v);
+    double buf[3]{};
+    std::list<rotation_descriptor> list(std::distance(beg, end));
 
-    double time{};
-    double asc{}, incl{}, vel{};
-    double buf[3];
-
-    log << "Оценка параметров вращения по измерениям в кол-ве " << count << std::endl;
-
-    for (; beg != end; ++beg) {
+    log << "Оценка параметров вращения по измерениям в кол-ве " << list.size() << std::endl;
+    for (auto lbeg = std::begin(list); beg != end; ++beg, ++lbeg) {
         auto [axis, angle] = from_quaternion(rotation(norm, normal(*beg, f.point(beg->t).v)));
         // ось z оси вращения должна быть положительной
         if (axis[2] < 0) {
@@ -214,20 +249,21 @@ rotational_params estimate_rotation(
             angle = -angle;
         }
         transform_t::backward(axis.data(), buf);
-        auto t = beg->t - tn;
-        time += sqr(t);
-        vel += angle * t;
-        incl += buf[1];
-        asc += buf[2];
-        log << beg->t << 
+        lbeg->t = beg->t - tn;
+        lbeg->i = buf[1];
+        lbeg->a = buf[2];
+        lbeg->p = angle;
+        log <<
+            "ID = " + beg->id << ' ' << beg->t << 
             " скл = " << rad_to_deg(buf[1]) << 
             " восх = " << rad_to_deg(buf[2]) << 
             " угол = " << rad_to_deg(angle) << std::endl;
     }
 
-    incl /= count;
-    asc /= count;
-    vel /= time;
+    double incl{}, asc{}, vel{};
+
+    std::tie(incl, asc, vel) = estimate(list);
+
     buf[0] = 1;
     buf[1] = incl;
     buf[2] = asc;
