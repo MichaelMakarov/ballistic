@@ -24,17 +24,17 @@ QValueAxis* make_axis(const QString& title) {
     return axis;
 }
 
-QChartView* make_chartview() {
+QChartView* make_chartview(const QString& name, const QString& vlabel) {
     QPen pen;
     pen.setColor(QColor(Qt::GlobalColor::black));
     pen.setWidth(3);
 
     auto line_series = new QLineSeries;
-    line_series->setName("Невязки");
+    line_series->setName(name);
     line_series->setPen(pen);
 
     auto scatter_series = new QScatterSeries;
-    scatter_series->setName("Невязки");
+    scatter_series->setName(name);
     scatter_series->setPen(pen);
     scatter_series->setMarkerShape(QScatterSeries::MarkerShape::MarkerShapeCircle);
     scatter_series->setMarkerSize(10);
@@ -44,7 +44,7 @@ QChartView* make_chartview() {
     chart->addSeries(scatter_series);
 
     auto x_axis = make_axis("t, сут");
-    auto y_axis = make_axis("|r|, м");
+    auto y_axis = make_axis(vlabel);
     chart->addAxis(x_axis, Qt::AlignmentFlag::AlignBottom);
     chart->addAxis(y_axis, Qt::AlignmentFlag::AlignLeft);
     line_series->attachAxis(x_axis);
@@ -95,13 +95,36 @@ void replot_chartview(QChartView* chartview, const residuals_info& residuals, co
     if (!residuals.array.empty()) {
         double maxt{};
         for (size_t i{}; i < residuals.array.size(); ++i) {
-            maxt = ((interval.begin + i)->t - interval.begin->t) / 86400;
+            maxt = ((interval.orb_begin + i)->t - interval.orb_begin->t) / 86400;
             line_series->append(maxt, residuals.array[i]);
             scatter_series->append(maxt, residuals.array[i]);
         }
         auto minmaxr = std::minmax_element(std::begin(residuals.array), std::end(residuals.array));
         auto chart = chartview->chart();
         chart->axes(Qt::Orientation::Vertical).front()->setRange(0.9 * (*minmaxr.first), 1.1 * (*minmaxr.second));
+        chart->axes(Qt::Orientation::Horizontal).front()->setRange(0, maxt);
+    }
+    chartview->update();
+}
+
+void replot_chartview(QChartView* chartview, const interval_info& interval)
+{
+    auto [line_series, scatter_series] = get_series(chartview);
+    line_series->clear();
+    scatter_series->clear();
+    if (std::distance(interval.rot_begin, interval.rot_end) > 0) {
+        double maxt{};
+        for (auto it = interval.rot_begin; it != interval.rot_end; ++it) {
+            maxt = (it->t - interval.rot_begin->t) / 86400;
+            line_series->append(maxt, it->s);
+            scatter_series->append(maxt, it->s);
+        }
+        auto minmaxr = std::minmax_element(
+            interval.rot_begin, interval.rot_end, 
+            [](const auto& left, const auto& right){ return left.s < right.s; }
+        );
+        auto chart = chartview->chart();
+        chart->axes(Qt::Orientation::Vertical).front()->setRange(0.9 * (minmaxr.first->s), 1.1 * (minmaxr.second->s));
         chart->axes(Qt::Orientation::Horizontal).front()->setRange(0, maxt);
     }
     chartview->update();
@@ -118,17 +141,20 @@ plotview::plotview(const computation* const comp, QWidget* const parent) : QWidg
     auto tab = new QTabWidget;
     grid->addWidget(tab);
 
-    auto init = make_chartview();
-    auto prev = make_chartview();
-    auto next = make_chartview();
+    auto magn = make_chartview("Зв.величина", "s");
+    auto init = make_chartview("Невязки", "|r|, м");
+    auto prev = make_chartview("Невязки", "|r|, м");
+    auto next = make_chartview("Невязки", "|r|, м");
 
+    tab->addTab(magn, "Звёздная величина");
     tab->addTab(init, "Исходные (без уточнения)");
     tab->addTab(prev, "Уточнённые (без вращения)");
     tab->addTab(next, "Уточнённые (с вращением)");
 
     connect(
         this, &plotview::clear_required, 
-        this, [init, prev, next, this](){
+        this, [init, prev, next, magn, this](){
+            clear_chartview(magn);
             clear_chartview(init);
             clear_chartview(prev);
             clear_chartview(next);
@@ -136,7 +162,8 @@ plotview::plotview(const computation* const comp, QWidget* const parent) : QWidg
     );
     connect(
         this, &plotview::replot_required,
-        this, [init, prev, next, this](){
+        this, [init, prev, next, magn, this](){
+            replot_chartview(magn, _comp->interval);
             replot_chartview(init, _comp->init_motion.r, _comp->interval);
             replot_chartview(prev, _comp->prev_motion.r, _comp->interval);
             replot_chartview(next, _comp->next_motion.r, _comp->interval);

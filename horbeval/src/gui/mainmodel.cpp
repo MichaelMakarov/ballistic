@@ -67,7 +67,7 @@ void mainmodel::set_interval(const QDateTime& tn, const QDateTime& tk)
     _tk = to_time(tk);
 }
 
-constexpr inline size_t min_required_count{ 3 };
+constexpr inline size_t min_required_count{ 1 };
 #define check_distance(beg, end, msg) ASSERT(std::distance(beg, end) >= min_required_count, msg);
 
 residuals_info compute_residuals(const forecast& f, measurement_iter beg, measurement_iter end)
@@ -115,10 +115,6 @@ void mainmodel::compute(computation* const info, const QString& filename) const
 
         auto tk = (end_orb - 1)->t;
 
-        info->interval.begin = beg_orb;
-        info->interval.end = end_orb - 1;
-        info->interval_info_updated();
-
         auto [beg_rot, end_rot] = _rotprovider->retrieve(_tn, _tk);
         check_distance(
             beg_rot, end_rot, 
@@ -127,6 +123,13 @@ void mainmodel::compute(computation* const info, const QString& filename) const
                 min_required_count
             )
         )
+
+        info->interval.orb_begin = beg_orb;
+        info->interval.orb_end = end_orb - 1;
+        info->interval.rot_begin = beg_rot;
+        info->interval.rot_end = end_rot;
+        info->interval_info_updated();
+        //throw std::runtime_error("Остановка.");
 
         // исходные параметры движения
         motion_params mp{};
@@ -255,8 +258,8 @@ std::string computation::to_string() const
     if (_stage >= computation_stage::first) {
         out << 
             "Мерный интервал" << std::endl <<
-            "нач. время " << interval.begin->t << std::endl <<
-            "длит-ть (сут) = " << (interval.end->t - interval.begin->t) / sec_per_day << std::endl;
+            "нач. время " << interval.orb_begin->t << std::endl <<
+            "длит-ть (сут) = " << (interval.orb_end->t - interval.orb_begin->t) / sec_per_day << std::endl;
         out << std::endl;
     }
     if (_stage >= computation_stage::fourth) {

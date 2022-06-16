@@ -33,15 +33,25 @@ struct residuals_info {
  */
 struct interval_info {
     /**
-     * @brief Итератор на первый элемент измерений
+     * @brief Итератор на первый элемент орбитальных измерений
      * 
      */
-    iterator_t<orbit_observation> begin;
+    iterator_t<orbit_observation> orb_begin;
     /**
-     * @brief Итератор на конечный элемент измерений
+     * @brief Итератор на конец орбитальных измерений
      * 
      */
-    iterator_t<orbit_observation> end;
+    iterator_t<orbit_observation> orb_end;
+    /**
+     * @brief Итератор на первый элемент измерений вращения
+     * 
+     */
+    iterator_t<rotation_observation> rot_begin;
+    /**
+     * @brief Итератор на конец измерений вращения
+     * 
+     */
+    iterator_t<rotation_observation> rot_end;
 };
 /**
  * @brief Параметры движения

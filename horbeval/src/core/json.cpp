@@ -228,7 +228,11 @@ rotation_observation_provider::rotation_observation_provider(std::istream&& ostr
 			o.o[1] = observ->y;
 			o.o[2] = observ->z;
 			o.s = m[3];
-			_list.push_back(o);
+			if (o.s == 0) continue;
+			auto it = std::find_if(std::begin(_list), std::end(_list), [&o](const auto& elem){ return o.t == elem.t; });
+			if (it == std::end(_list)){
+				_list.push_back(o);
+			}	
 		}
 	}
 

@@ -257,7 +257,8 @@ rotational_params estimate_rotation(
             "ID = " + beg->id << ' ' << beg->t << 
             " скл = " << rad_to_deg(buf[1]) << 
             " восх = " << rad_to_deg(buf[2]) << 
-            " угол = " << rad_to_deg(angle) << std::endl;
+            " угол = " << rad_to_deg(angle) <<
+            " зв.вел. = " << beg->s << std::endl;
     }
 
     double incl{}, asc{}, vel{};
