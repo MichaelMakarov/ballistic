@@ -3,7 +3,9 @@
 #include <forecast.hpp>
 #include <transform.hpp>
 #include <ball.hpp>
+#include <algorithm>
 #include <array>
+#include <cmath>
 
 class interval_range
 {
@@ -121,7 +123,7 @@ double cos_phase_angle(const double *o, const double *v, time_h t)
 double square_from_magnitude(double magn, double cos_phase, double rsqr)
 {
     // фазовая функция F(phi) = (cos(phi / 2))^2 / pi, где cos(phi / 2) = sqrt( (1 + cos(phi)) / 2 )
-    auto phase_func = (cos_phase + 1) * (0.5 / std::numbers::pi);
+    auto phase_func = (cos_phase + 1) * (0.5 / pi);
     return std::pow(10.0, (magn + 26.58) * (1 / -2.5)) * rsqr / phase_func;
 }
 /**
@@ -266,14 +268,14 @@ auto select(const std::array<interval_range, 5> &rs, const std::vector<double> &
 
 vec<5> estimate_rotation(const std::vector<double> &ratios, const measuring_interval &inter)
 {
-    constexpr size_t grid_size{6};
+    constexpr size_t grid_size{10};
     // оцениваем частоту изменения данных площади поверхности
     double w = estimate_angular_velocity(inter, ratios);
     // сетка параметров
     std::array<interval_range, 5> ranges;
     // заполняем изначальные диапазоны сетки
-    ranges[0] = ranges[3] = interval_range{.min = -std::numbers::pi, .max = std::numbers::pi, .count = grid_size};
-    ranges[1] = ranges[4] = interval_range{.min = -std::numbers::pi / 2, .max = std::numbers::pi / 2, .count = grid_size};
+    ranges[0] = ranges[3] = interval_range{.min = -pi, .max = pi, .count = grid_size};
+    ranges[1] = ranges[4] = interval_range{.min = -pi / 2, .max = pi / 2, .count = grid_size};
     ranges[2] = interval_range{.min = 5e-1 * w, .max = 25e-1 * w, .count = grid_size};
     // параметры вращения
     vec<5> rp;
@@ -295,63 +297,16 @@ vec<5> estimate_rotation(const std::vector<double> &ratios, const measuring_inte
     return rp;
 }
 
-void estimate_rotation(measuring_interval const &inter, vec6 const &v, time_h tn, double s, double m, rotation_info &info)
+void estimate_rotation(measuring_interval const &inter, double const (&v)[6], time_h tn, rotation_info &info)
 {
     // параметры движения
-    auto f = make_forecast(motion_params{.v = v, .t = tn}, inter.tk(), s, m);
+    motion_params mp;
+    mp.t = tn;
+    std::copy(v, v + 6, mp.v.data());
+    auto f = make_forecast(mp, inter.tk());
     auto surf_info = compute_surface(f, inter);
     // параметры вращения
     auto r = estimate_rotation(surf_info.ratios, inter);
     info.n = surface_normal{r[3], r[4]};
     info.r = rotator{.tn = inter.tn(), .axis = surface_normal(r[0], r[1]), .vel = r[2]};
 }
-
-/**
- * @brief Класс для оценивания параметров вращения
- *
- */
-class rotation_wrapper : public optimization_interface<5>
-{
-    measuring_interval const &_inter;
-    /**
-     * @brief Массив изменений площади отражающей поверхности по отношению к начальному значению + начальное значение
-     *
-     */
-    square_info _info;
-
-public:
-    rotation_wrapper(measuring_interval const &inter, vec6 const &v, time_h tn, double s, double m) : _inter{inter}
-    {
-        // параметры движения
-        auto f = make_forecast(motion_params{.v = v, .t = tn}, inter.tk(), s, m);
-        _info = compute_surface(f, inter);
-    }
-
-    vec<5> variations() const override
-    {
-        vec<5> v;
-        v[0] = v[1] = v[3] = v[4] = deg_to_rad(5);
-        v[2] = deg_to_rad(1) / 86400;
-        return v;
-    }
-
-    double derivative(double deriv, size_t index) const override
-    {
-        return deriv;
-    }
-
-    double residual(vec<5> const &v) const override
-    {
-        return compute_residual(v, _inter, _info.ratios);
-    }
-};
-
-// void estimate_rotation(measuring_interval const &inter, vec6 const &v, time_h tn, double s, double m, rotation_info &info)
-// {
-//     vec<5> params{deg_to_rad(45), deg_to_rad(60), 1e-6, deg_to_rad(-10), 0};
-//     rotation_wrapper rw{inter, v, tn, s, m};
-//     basic_logger<5> l;
-//     levenberg_marquardt(params, rw, &l);
-//     info.n = surface_normal{params[3], params[4]};
-//     info.r = rotator{.tn = inter.tn(), .axis = surface_normal(params[0], params[1]), .vel = params[2]};
-// }

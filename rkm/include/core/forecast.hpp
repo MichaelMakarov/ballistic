@@ -3,6 +3,8 @@
 #include <maths.hpp>
 #include <times.hpp>
 
+using namespace math;
+
 /**
  * @brief Параметры движения
  *

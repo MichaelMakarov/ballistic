@@ -2,6 +2,8 @@
 #include <ball.hpp>
 #include <maths.hpp>
 
+using namespace math;
+
 /**
  * @brief Базовая модель движения центра масс
  *

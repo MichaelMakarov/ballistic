@@ -9,8 +9,8 @@ struct round_plane
     vec3 normal;
 };
 
-void estimate_basic_model(measuring_interval const &, vec6 &, time_h);
+void estimate_model(measuring_interval const &, time_h, basic_info &);
 
-void estimate_basic_model(measuring_interval const &, time_h, round_plane const &, basic_info &);
+void estimate_model(measuring_interval const &, time_h, round_plane const &, extbasic_info &);
 
-void estimate_extended_model(measuring_interval const &, time_h, round_plane const &, rotator const &, extended_info &);
+void estimate_model(measuring_interval const &, time_h, round_plane const &, rotator const &, extended_info &);

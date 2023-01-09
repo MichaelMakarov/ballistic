@@ -1,7 +1,7 @@
 #include <mainmodel.hpp>
 #include <computation.hpp>
+#include <formatoutput.hpp>
 #include <formatting.hpp>
-#include <timefmt.hpp>
 #include <motion.hpp>
 #include <rotation.hpp>
 #include <settings.hpp>
@@ -58,26 +58,24 @@ public:
     context_binding(settings_context &ctx, std::string_view filename) : _ctx{&ctx}, _filename{filename} {}
     context_binding(const context_binding &) noexcept = default;
     context_binding &operator=(const context_binding &) noexcept = default;
-    ~context_binding() noexcept(false);
+    ~context_binding() noexcept(false)
+    {
+        using namespace std::string_literals;
+        if (_filename.empty())
+            return;
+        try
+        {
+            auto fout = open_outfile(_filename);
+            print_output(fout, _ctx->out, true);
+        }
+        catch (const std::exception &ex)
+        {
+            throw std::runtime_error("При сохранении результатов в файл возникла ошибка. "s + ex.what());
+        }
+    }
     computational_output &output() const { return _ctx->out; }
     size_t &stage() const { return _ctx->stage; }
 };
-
-context_binding::~context_binding() noexcept(false)
-{
-    using namespace std::string_literals;
-    if (_filename.empty())
-        return;
-    try
-    {
-        auto fout = open_outfile(_filename);
-        print_output(fout, _ctx->out, true);
-    }
-    catch (const std::exception &ex)
-    {
-        throw std::runtime_error("При сохранении результатов в файл возникла ошибка. "s + ex.what());
-    }
-}
 
 /**
  * @brief Объект для хранения контекста выполнения
@@ -90,25 +88,33 @@ class computational_context
     std::list<settings_context> contexts;
 
 public:
-    context_binding bind(double inter, size_t tle, std::string_view filename);
+    context_binding bind(double inter, size_t tle, std::string_view filename)
+    {
+        settings_context ctx{
+            .prj = settings,
+            .inter = inter,
+            .tle = tle};
+        auto iter = std::ranges::find(contexts, ctx);
+        if (iter != std::ranges::end(contexts))
+        {
+            return context_binding(*iter, filename);
+        }
+        else
+        {
+            contexts.push_back(ctx);
+            return context_binding(contexts.back(), filename);
+        }
+    }
 };
 
-context_binding computational_context::bind(double inter, size_t tle, std::string_view filename)
+bool cmp_to_be_earlier(const observation_seance &elem, time_h ref)
 {
-    settings_context ctx{
-        .prj = settings,
-        .inter = inter,
-        .tle = tle};
-    auto iter = std::ranges::find(contexts, ctx);
-    if (iter != std::ranges::end(contexts))
-    {
-        return context_binding(*iter, filename);
-    }
-    else
-    {
-        contexts.push_back(ctx);
-        return context_binding(contexts.back(), filename);
-    }
+    return ref > elem.m.front().t;
+}
+
+bool cmp_to_be_later(time_h ref, const observation_seance &elem)
+{
+    return ref < elem.m.back().t;
 }
 
 class ballistic_computer
@@ -132,37 +138,19 @@ public:
      * @param tle_index индекс опорного ТЛЕ
      * @param interval длина мерного интервала в сек
      */
-    void compute(computational_output &output, size_t &stage, size_t tle_index, double interval);
-
-private:
-    void verify() const;
-};
-
-bool cmp_to_be_earlier(const observation_seance &elem, time_h ref)
-{
-    return ref > elem.m.front().t;
-}
-
-bool cmp_to_be_later(time_h ref, const observation_seance &elem)
-{
-    return ref < elem.m.back().t;
-}
-
-void ballistic_computer::compute(computational_output &output, size_t &stage, size_t tle_index, double interval)
-{
-    verify();
-    if (!output.refer)
+    void compute(computational_output &output, size_t tle_index, double interval)
     {
-        // начальные условия из ТЛЕ
-        output.refer = std::make_shared<orbit_data>();
-        *output.refer = tles.at(tle_index);
-    }
-    // начальный момент времени
-    auto tn = output.refer->t;
-    // конечный момент времени
-    auto tk = tn + interval;
-    if (!output.inter || stage < 1)
-    {
+        verify();
+        if (!output.refer)
+        {
+            // начальные условия из ТЛЕ
+            output.refer = std::make_shared<orbit_data>();
+            *output.refer = tles.at(tle_index);
+        }
+        // начальный момент времени
+        auto tn = output.refer->t;
+        // конечный момент времени
+        auto tk = tn + interval;
         // начальный сеанс на мерном инетрвале
         auto begin = std::lower_bound(std::begin(seances), std::end(seances), tn, &cmp_to_be_earlier);
         // конечный сеанс
@@ -173,64 +161,68 @@ void ballistic_computer::compute(computational_output &output, size_t &stage, si
         size_t number = inter.points_count();
         if (number <= 7)
         {
-            throw std::runtime_error(std::format("Недостаточное кол-во измерений {} на интервале {} - {}.", number, tn, tk));
+            throw std::runtime_error(format("Недостаточное кол-во измерений % на интервале % - %.", number, tn, tk));
         }
         // мерный интервал
         output.inter = std::make_shared<measuring_interval>(inter);
-        stage = 1;
+        auto func = [&output, tn](std::size_t i)
+        {
+            if (i == 0)
+            {
+                // решение по базовой модели
+                output.basic = std::make_shared<basic_info>();
+                std::copy(output.refer->v, output.refer->v + 6, output.basic->v.data());
+                estimate_model(*output.inter, tn, *output.basic);
+            }
+            else if (i == 1)
+            {
+                round_plane plane{
+                    .mass = settings.object.mass,
+                    .square = settings.object.square,
+                    .refl = settings.object.refl};
+                output.extbasic = std::make_shared<extbasic_info>();
+                std::copy(output.refer->v, output.refer->v + 6, output.extbasic->v.data());
+                estimate_model(*output.inter, tn, plane, *output.extbasic);
+            }
+            else
+            {
+                // оценка параметров вращения
+                rotation_info info{};
+                estimate_rotation(*output.inter, output.refer->v, tn, info);
+                output.rotation = std::make_shared<rotation_info>();
+                *output.rotation = info;
+                // параметры диска
+                round_plane plane{
+                    .mass = settings.object.mass,
+                    .square = settings.object.square,
+                    .refl = settings.object.refl,
+                    .normal = output.rotation->n};
+                output.extended = std::make_shared<extended_info>();
+                std::copy(output.refer->v, output.refer->v + 6, output.extended->v.data());
+                // решение по модели с учетом вращения
+                estimate_model(*output.inter, tn, plane, output.rotation->r, *output.extended);
+            }
+        };
+        par::parallel_for(std::size_t{}, std::size_t{3}, func);
     }
-    if (!output.basic || stage < 2)
-    {
-        round_plane plane{
-            .mass = settings.object.mass,
-            .square = settings.object.square,
-            .refl = settings.object.refl};
-        // решение по базовой модели
-        output.basic = std::make_shared<basic_info>();
-        std::copy(output.refer->v, output.refer->v + 6, output.basic->v.data());
-        estimate_basic_model(*output.inter, tn, plane, *output.basic);
-        stage = 2;
-    }
-    if (!output.rotation || stage < 3)
-    {
-        // оценка параметров вращения
-        rotation_info info{};
-        estimate_rotation(*output.inter, output.basic->v, tn, output.basic->s, settings.object.mass, info);
-        output.rotation = std::make_shared<rotation_info>();
-        *output.rotation = info;
-        // stage = 3;
-    }
-    if (!output.extended || stage < 4)
-    {
-        // параметры диска
-        round_plane plane{
-            .mass = settings.object.mass,
-            .square = settings.object.square,
-            .refl = settings.object.refl,
-            .normal = output.rotation->n};
-        output.extended = std::make_shared<extended_info>();
-        std::copy(output.refer->v, output.refer->v + 6, output.extended->v.data());
-        // решение по модели с учетом вращения
-        estimate_extended_model(*output.inter, tn, plane, output.rotation->r, *output.extended);
-        // stage = 4;
-    }
-}
 
-void ballistic_computer::verify() const
-{
-    if (egm::harmonics.empty())
+private:
+    void verify() const
     {
-        throw std::runtime_error("Гармоники геопотенциала Земли не загружены.");
+        if (egm::harmonics.empty())
+        {
+            throw std::runtime_error("Гармоники геопотенциала Земли не загружены.");
+        }
+        if (tles.empty())
+        {
+            throw std::runtime_error("Данные TLE отсутствуют.");
+        }
+        if (seances.empty())
+        {
+            throw std::runtime_error("Данные измерений отсутствуют.");
+        }
     }
-    if (tles.empty())
-    {
-        throw std::runtime_error("Данные TLE отсутствуют.");
-    }
-    if (seances.empty())
-    {
-        throw std::runtime_error("Данные измерений отсутствуют.");
-    }
-}
+};
 
 computational_model::computational_model(QObject *parent) : QObject(parent)
 {
@@ -308,7 +300,7 @@ void computational_model::compute(const std::string &filename) const
         auto binding = _context->bind(_interval, _index, filename);
         try
         {
-            _computer->compute(binding.output(), binding.stage(), _index, _interval * sec_per_day);
+            _computer->compute(binding.output(), _index, _interval * sec_per_day);
         }
         catch (const std::exception &)
         {

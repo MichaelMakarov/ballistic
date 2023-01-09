@@ -1,7 +1,7 @@
 #include <models.hpp>
 #include <computation.hpp>
 #include <transform.hpp>
-#include <timefmt.hpp>
+#include <formatting.hpp>
 
 basic_model::basic_model(size_t harmonics) : _gpt{harmonics}
 {
@@ -13,17 +13,40 @@ vec6 basic_model::operator()(const vec6 &v, const time_h &t)
     double h = height_above_ellipsoid(v.data(), egm::rad, egm::flat);
     if (!heights(h))
     {
-        throw std::runtime_error(std::format("При t = {} высота h = {:.1f} вышла за пределы ограничений {:.1f} - {:.1f}.", t, h, heights.begin, heights.end));
+        throw std::runtime_error(format("При t = % высота h = % вышла за пределы ограничений % - %.", t, h, heights.begin, heights.end));
     }
+    vec6 dv;
+    for (size_t i{}; i < 3; ++i)
+        dv[i] = v[i + 3];
+    dv[3] = w2 * v[0] + 2 * egm::angv * v[4];
+    dv[4] = w2 * v[1] - 2 * egm::angv * v[3];
+    // буффер для ускорения
+    double buf[3]{};
+    // координаты Солнца
+    double sun[3]{};
+    // координаты Луны
+    double moon[3]{};
+    // среднее звёздное время
+    double st = sidereal_time_mean(t);
 
-    double a[3]{};
-    _gpt.acceleration(v.data(), a);
+    // вычисляем влияние геопотенциала
+    _gpt.acceleration(v.data(), buf);
+    for (size_t i{}; i < 3; ++i)
+        dv[i + 3] += buf[i];
 
-    return {
-        v[3], v[4], v[5],
-        a[0] + w2 * v[0] + 2 * egm::angv * v[4],
-        a[1] + w2 * v[1] - 2 * egm::angv * v[3],
-        a[2]};
+    solar_model::coordinates(t, buf);
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, sun);
+    mass_acceleration(v.data(), sun, solar_model::mu(), buf);
+    for (size_t i{}; i < 3; ++i)
+        dv[i + 3] += buf[i];
+
+    lunar_model::coordinates(t, buf);
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, moon);
+    mass_acceleration(v.data(), moon, lunar_model::mu(), buf);
+    for (size_t i{}; i < 3; ++i)
+        dv[i + 3] += buf[i];
+
+    return dv;
 }
 
 vec3 solar_pressure(vec3 sun, vec3 const &p, double coef);
@@ -73,6 +96,7 @@ bool point_inside_cone(const vec3 &p, double apex, double r)
  */
 double eclipse(vec3 p, const vec3 &sun, double r)
 {
+    return 1.0;
     constexpr double res[]{1, 0.5, 0};
     // матрица перехода к координатам, где ось х направлена на Солнце
     auto trmx = make_transform(sun);

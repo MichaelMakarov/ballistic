@@ -1,5 +1,5 @@
 #include <presenter.hpp>
-#include <formatting.hpp>
+#include <formatoutput.hpp>
 #include <computation.hpp>
 #include <mainmodel.hpp>
 #include <gui.hpp>

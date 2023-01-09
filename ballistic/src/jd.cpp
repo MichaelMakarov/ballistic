@@ -2,6 +2,8 @@
 #include <maths.hpp>
 #include <chrono>
 
+using namespace math;
+
 /**
  * @brief Юлианская дата для 1 января 2000, 12:00
  *
@@ -68,7 +70,7 @@ double daypart(time_h t)
 
 double sidereal_time_mean(double jc, double jt)
 {
-	return fit_to_round(1.7533685592 + 6.2831853072 * jt + jc * (0.0172027918051 * 36525 + jc * (6.7707139e-6 - 4.50876e-10 * jc)));
+	return fit_round(1.7533685592 + 6.2831853072 * jt + jc * (0.0172027918051 * 36525 + jc * (6.7707139e-6 - 4.50876e-10 * jc)));
 }
 
 double sidereal_time_mean(time_h t)
@@ -93,5 +95,5 @@ double sidereal_time_true(time_h t)
 	double nut =
 		-0.83386e-4 * std::sin(o) + 0.9997e-6 * std::sin(2 * o) + 0.6913e-6 * std::sin(sa) -
 		0.63932e-5 * std::sin(2 * (f - d + o)) - 0.11024e-5 * std::sin(2 * (f + o));
-	return fit_to_round(sidereal_time_mean(jc, daypart(t)) + nut * std::cos(e));
+	return fit_round(sidereal_time_mean(jc, daypart(t)) + nut * std::cos(e));
 }

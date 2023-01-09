@@ -5,45 +5,50 @@
 #include <set>
 #include <fstream>
 
-struct observatory {
-    std::string id;
-    double x;
-    double y;
-    double z;
-    double lat;
-    double lon;
-    double alt;
+struct observatory
+{
+	std::string id;
+	double x;
+	double y;
+	double z;
+	double lat;
+	double lon;
+	double alt;
 };
 
-struct observatory_list {
+struct observatory_list
+{
 	std::list<observatory> list;
 };
 
-struct seance {
-    std::string date;
-    std::string time;
-    std::string observatory;
-    std::string filter;
-    std::string type;
-    std::string tm;
-    std::size_t n;
-    std::size_t hash;
-    double duration;
-    double min;
-    double max;
-    std::vector<std::array<double, 6>> track;
-    std::array<double, 8> orbit;
+struct seance
+{
+	std::string date;
+	std::string time;
+	std::string observatory;
+	std::string filter;
+	std::string type;
+	std::string tm;
+	std::size_t n;
+	std::size_t hash;
+	double duration;
+	double min;
+	double max;
+	std::vector<std::array<double, 6>> track;
+	std::array<double, 8> orbit;
 };
 
-struct observation {
-    std::string id;
-    std::size_t norad;
-    std::size_t kiam;
-    std::size_t nko;
-    std::vector<seance> seances;
+struct observation
+{
+	std::string id;
+	std::size_t norad;
+	std::size_t kiam;
+	std::size_t nko;
+	std::vector<seance> seances;
 };
 
-struct observatory_json {
+struct observatory_json
+{
 	JSON_NAME2(n_id, "ID")
 	JSON_NAME2(n_x, "X")
 	JSON_NAME2(n_y, "Y")
@@ -61,24 +66,21 @@ struct observatory_json {
 			wjson::member<n_altitude, observatory, double, &observatory::alt>,
 			wjson::member<n_x, observatory, double, &observatory::x>,
 			wjson::member<n_y, observatory, double, &observatory::y>,
-			wjson::member<n_z, observatory, double, &observatory::z>
-		>
-	>;
+			wjson::member<n_z, observatory, double, &observatory::z>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
 };
 
-struct observatory_list_json {
+struct observatory_list_json
+{
 	JSON_NAME2(n_list, "observatories")
 
 	using list_json = wjson::list_of<observatory_json>;
 	using type = wjson::object<
 		observatory_list,
 		wjson::member_list<
-			wjson::member<n_list, observatory_list, std::list<observatory>, &observatory_list::list, list_json>
-		>
-	>;
+			wjson::member<n_list, observatory_list, std::list<observatory>, &observatory_list::list, list_json>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
@@ -87,7 +89,8 @@ struct observatory_list_json {
 using measurement_json = wjson::array<std::array<wjson::value<double>, 6>>;
 using orbit_json = wjson::array<std::array<wjson::value<double>, 8>>;
 
-struct seance_json {
+struct seance_json
+{
 	JSON_NAME(date)
 	JSON_NAME(time)
 	JSON_NAME(observatory)
@@ -118,15 +121,14 @@ struct seance_json {
 			wjson::member<n_hash, seance, std::size_t, &seance::hash>,
 			wjson::member<n_track, seance, std::vector<std::array<double, 6>>, &seance::track, measurement_list_json>,
 			wjson::member<n_tm, seance, std::string, &seance::tm>,
-			wjson::member<n_orbit, seance, std::array<double, 8>, &seance::orbit, orbit_json>
-		>
-	>;
+			wjson::member<n_orbit, seance, std::array<double, 8>, &seance::orbit, orbit_json>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
 };
 
-struct observation_json {
+struct observation_json
+{
 	JSON_NAME2(n_id, "ID")
 	JSON_NAME(norad)
 	JSON_NAME(kiam)
@@ -141,17 +143,15 @@ struct observation_json {
 			wjson::member<n_norad, observation, std::size_t, &observation::norad>,
 			wjson::member<n_kiam, observation, std::size_t, &observation::kiam>,
 			wjson::member<n_nko, observation, std::size_t, &observation::nko>,
-			wjson::member<n_seances, observation, std::vector<seance>, &observation::seances, seance_list_json>
-		>
-	>;
+			wjson::member<n_seances, observation, std::vector<seance>, &observation::seances, seance_list_json>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
 };
 
-std::string content(std::istream& in)
+std::string content(std::istream &in)
 {
-    in.seekg(0, std::ios::beg);
+	in.seekg(0, std::ios::beg);
 	in.seekg(0, std::ios::end);
 	auto str = std::string(in.tellg(), '\0');
 	in.seekg(0, std::ios::beg);
@@ -159,80 +159,90 @@ std::string content(std::istream& in)
 	return str;
 }
 
-template<typename S, typename I, typename T>
-void serialize(const S& serializer, I iter, const T& object)
+template <typename S, typename I, typename T>
+void serialize(const S &serializer, I iter, const T &object)
 {
 	serializer(object, iter);
 }
 
-template<typename S, typename T>
-void deserialize(const S& serializer, const std::string_view json_str, T& object)
+template <typename S, typename T>
+void deserialize(const S &serializer, const std::string_view json_str, T &object)
 {
-    wjson::json_error error;
+	wjson::json_error error;
 	serializer(object, std::begin(json_str), std::end(json_str), &error);
-	if (error.status()) {
-        auto msg = "Ошибка десериализации в позиции " +
-            std::to_string(wjson::strerror::where(error, std::begin(json_str), std::end(json_str))) +
-            " с сообщением " + wjson::strerror::message(error);
+	if (error.status())
+	{
+		auto msg = "Ошибка десериализации в позиции " +
+				   std::to_string(wjson::strerror::where(error, std::begin(json_str), std::end(json_str))) +
+				   " с сообщением " + wjson::strerror::message(error);
 		throw std::runtime_error(msg);
 	}
 }
 
-std::list<observatory> observatories_from_json(std::istream& in)
+std::list<observatory> observatories_from_json(std::istream &in)
 {
 	using namespace std::string_literals;
-    observatory_list observatories;
-	try {
-    	deserialize(observatory_list_json::serializer(), content(in), observatories);
-	} catch (const std::exception& error) {
+	observatory_list observatories;
+	try
+	{
+		deserialize(observatory_list_json::serializer(), content(in), observatories);
+	}
+	catch (const std::exception &error)
+	{
 		throw std::runtime_error("Не удалось десериализовать обсерватории. "s + error.what());
 	}
-    return observatories.list;
+	return observatories.list;
 }
 
-observation observation_from_json(std::istream& in)
+observation observation_from_json(std::istream &in)
 {
 	using namespace std::string_literals;
-    observation obs;
-	try {
-    	deserialize(observation_json::serializer(), content(in), obs);
-	} catch (const std::exception& error) {
+	observation obs;
+	try
+	{
+		deserialize(observation_json::serializer(), content(in), obs);
+	}
+	catch (const std::exception &error)
+	{
 		throw std::runtime_error("Не удалось десериализовать измерения. "s + error.what());
 	}
-    return obs;
+	return obs;
 }
 
-namespace std {
-	template<>
-	struct less<measurement_data> {
-		bool operator()(const measurement_data& left, const measurement_data& right) const {
+namespace std
+{
+	template <>
+	struct less<measurement_data>
+	{
+		bool operator()(const measurement_data &left, const measurement_data &right) const
+		{
 			return left.t < right.t;
 		}
 	};
 }
 
-
 std::ifstream open_infile(const std::string_view);
 std::ofstream open_outfile(const std::string_view);
-
 
 auto load_brightness_data(const std::string_view obs_filename, const std::string_view mes_filename) -> std::vector<observation_seance>
 {
 	auto fin1 = open_infile(obs_filename);
 	auto fin2 = open_infile(mes_filename);
 	auto observatories = observatories_from_json(fin1);
-    auto observation = observation_from_json(fin2);
+	auto observation = observation_from_json(fin2);
 
 	std::vector<observation_seance> seances;
 	seances.reserve(observation.seances.size());
-    
-	for (const auto& s : observation.seances) {
+
+	for (const auto &s : observation.seances)
+	{
 		auto tn = make_time(s.date + ' ' + s.time, "Y-m-d H:M:S");
 		auto observ = std::find_if(
 			std::begin(observatories), std::end(observatories),
-			[&s](const observatory& obs){ return s.observatory == obs.id; }
-		);
-		if (observ == std::end(observatories)) continue;
+			[&s](const observatory &obs)
+			{ return s.observatory == obs.id; });
+		if (observ == std::end(observatories))
+			continue;
 
 		observation_seance seance{};
 		seance.id = observ->id;
@@ -242,12 +252,14 @@ auto load_brightness_data(const std::string_view obs_filename, const std::string
 
 		std::set<measurement_data> ranged_obs;
 
-		for (const auto& m : s.track) {
-			if (m[3] == 0) continue;
+		for (const auto &m : s.track)
+		{
+			if (m[3] == 0 || m[0] == 0 || m[1] == 0)
+				continue;
 			measurement_data b{};
 			b.t = tn + m[0];
-			b.a = m[1] * (std::numbers::pi / 12);
-			b.i = deg_to_rad(m[2]);
+			b.a = m[1] * (math::pi / 12);
+			b.i = math::deg_to_rad(m[2]);
 			b.m = m[3];
 			ranged_obs.insert(b);
 		}
@@ -255,12 +267,15 @@ auto load_brightness_data(const std::string_view obs_filename, const std::string
 		std::copy(std::begin(ranged_obs), std::end(ranged_obs), std::begin(seance.m));
 		seances.push_back(seance);
 	}
+	std::sort(std::begin(seances), std::end(seances),
+			  [](observation_seance const &left, observation_seance const &right)
+			  { return left.m.front().t < right.m.front().t; });
 
 	return seances;
 }
 
-
-struct object_info_json {
+struct object_info_json
+{
 	JSON_NAME(mass)
 	JSON_NAME(square)
 	JSON_NAME(refl)
@@ -270,38 +285,34 @@ struct object_info_json {
 		wjson::member_list<
 			wjson::member<n_mass, object_info, double, &object_info::mass>,
 			wjson::member<n_square, object_info, double, &object_info::square>,
-			wjson::member<n_refl, object_info, double, &object_info::refl>
-		>
-	>;
+			wjson::member<n_refl, object_info, double, &object_info::refl>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
 };
 
-struct project_settings_json {
-    JSON_NAME(gpt)
-    JSON_NAME(tle)
-    JSON_NAME(observatories)
-    JSON_NAME(observation)
+struct project_settings_json
+{
+	JSON_NAME(gpt)
+	JSON_NAME(tle)
+	JSON_NAME(observatories)
+	JSON_NAME(observation)
 	JSON_NAME(object)
 
-    using type = wjson::object<
+	using type = wjson::object<
 		project_settings,
 		wjson::member_list<
 			wjson::member<n_gpt, project_settings, std::string, &project_settings::gptpath>,
 			wjson::member<n_tle, project_settings, std::string, &project_settings::tlepath>,
 			wjson::member<n_observatories, project_settings, std::string, &project_settings::obspath>,
 			wjson::member<n_observation, project_settings, std::string, &project_settings::mespath>,
-			wjson::member<n_object, project_settings, object_info, &project_settings::object, object_info_json>
-		>
-	>;
+			wjson::member<n_object, project_settings, object_info, &project_settings::object, object_info_json>>>;
 	using serializer = type::serializer;
 	using target = type::target;
 	using member_list = type::member_list;
 };
 
-
-constexpr const char* settings_filename{ "settings.json" };
+constexpr const char *settings_filename{"settings.json"};
 
 void read_settings()
 {
@@ -312,5 +323,5 @@ void read_settings()
 void write_settings()
 {
 	auto fout = open_outfile(settings_filename);
-	serialize(project_settings_json::serializer(), std::ostream_iterator<char>{ fout }, settings);
+	serialize(project_settings_json::serializer(), std::ostream_iterator<char>{fout}, settings);
 }

@@ -1,7 +1,6 @@
 #pragma once
+#include <formatting.hpp>
 #include <vector>
-#include <algorithm>
-#include <stdexcept>
 
 template <typename>
 struct is_function_ptr
@@ -243,9 +242,9 @@ inline integration_interface<V, T, D>::integration_interface(integratable_point<
 	}
 
 	// основной цикл расчёта
-	for (auto it = std::begin(_points); index < count; ++it)
+	for (auto it = std::begin(_points); index < count; ++it, ++index)
 	{
-		_points[index++] = adams<V, T>(it, step, func);
+		_points[index] = adams<V, T>(it, step, func);
 	}
 }
 
@@ -256,12 +255,14 @@ inline integratable_point<V, T> integration_interface<V, T, D>::point(T const &t
 	auto count = _points.size();
 	if (count < degree)
 	{
-		throw std::length_error("Степень аппроксимации превосходит кол-во доступных точек.");
+		throw std::length_error(format("Степень аппроксимации % превосходит кол-во доступных точек %.", degree, count));
 	}
-	auto index = static_cast<size_t>((t - _points.front().t) / _step);
+	T tn = _points.front().t;
+	T tk = _points.back().t;
+	auto index = static_cast<size_t>((t - tn) / _step);
 	if (index >= count)
 	{
-		throw std::invalid_argument("Момент времени находится за пределами интервала интегрирования.");
+		throw std::invalid_argument(format("Момент времени % находится за пределами интервала интегрирования % - %.", t, tn, tk));
 	}
 	// индекс первой точки для аппроксимации
 	index = (size_t)std::max(int{}, std::min(int(count) - int(degree), int(index) - int(degree / 2)));

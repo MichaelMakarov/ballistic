@@ -1,5 +1,8 @@
 #pragma once
 #include <maths.hpp>
+#include <parallel.hpp>
+
+using namespace math;
 
 void throw_if_index_out_of_range(size_t i, size_t supr);
 
@@ -24,271 +27,182 @@ bool is_equal(double oldval, double newval, double eps);
  */
 bool is_equal_or_greater(double oldval, double newval, double eps);
 
-namespace detail
+template <std::size_t _dim>
+using array_view = double[_dim];
+
+inline double residual_function(vector const &v)
 {
-	class invoker
-	{
-	public:
-		virtual void invoke(size_t) const = 0;
-	};
-
-	template <typename F>
-	class function_invoker : public invoker
-	{
-		F &_func;
-
-	public:
-		function_invoker(F &func) : _func{func} {}
-		void invoke(size_t index) const override
-		{
-			_func(index);
-		}
-	};
-
-}
-
-/**
- * @brief Выполнение функции в параллельном режиме.
- *
- * @tparam F тип вызываемой функции
- * @param begin начальный индекс
- * @param end конечный индекс
- * @param func функция
- */
-template <typename F>
-void parallel_for(size_t begin, size_t end, F &&func)
-{
-	static_assert(std::is_invocable<F, size_t>::value, "Функция не может быть вызвана с аргументом типа size_t и не удовлеворяет интерфейсу parallel_for.");
-	void parallel_for_impl(size_t, size_t, detail::invoker *);
-	if (begin != end)
-	{
-		parallel_for_impl(begin, end, new detail::function_invoker<F>(func));
-	}
+	return v * v;
 }
 
 /**
  * @brief Интерфейс для оптимизации
  *
- * @tparam param кол-во оптимизируемых параметров
+ * @tparam _size кол-во оптимизируемых параметров
+ * @tparam _dim размер вектора невязок, соответствующего одному измерению
  */
-template <size_t param>
+template <size_t _size, size_t _dim>
 class optimization_interface
 {
 public:
 	/**
-	 * @brief Вычисление значения функции невязок.
+	 * @brief Кол-во измерений.
+	 *
+	 * @return std::size_t
+	 */
+	virtual std::size_t points_count() const = 0;
+	/**
+	 * @brief Вычисление невязок.
 	 *
 	 * @param v вектор параметров
-	 * @return double
+	 * @param r массив невязок
 	 */
-	virtual double residual(vec<param> const &v) const = 0;
+	virtual void residual(vec<_size> const &v, array_view<_dim> *const r) const = 0;
 	/**
 	 * @brief Возвращает вектор из вариаций параметров.
 	 *
-	 * @return vec<param>
+	 * @return vec<_size>
 	 */
-	virtual vec<param> variations() const = 0;
+	virtual vec<_size> variations() const = 0;
 	/**
-	 * @brief Уточняет частную производную для параметра с указанным индексом.
+	 * @brief Уточняет поправку для параметра с указанным индексом.
 	 *
-	 * @param deriv значение частной производной для параметра
+	 * @param value значение
 	 * @param index индекс параметра
-	 * @return double
+	 * @param add значение поправки
 	 */
-	virtual double derivative(double deriv, size_t index) const = 0;
+	virtual void update(double &value, size_t index, double add) const = 0;
 };
 
-/**
- * @brief Оптимизация методом градиентного спуска.
- *
- * @tparam param кол-во оптимизируемых параметров
- * @param params оптимизируемые параметры
- * @param interface интерфейс для вычисления невязок
- * @param eps точность вычисления
- * @param maxiter максимальное кол-во итераций
- * @return size_t кол-во выполненных итераций
- */
-template <size_t param>
-size_t gradient_descent(vec<param> &params, optimization_interface<param> &interface, double eps = 1e-3, size_t maxiter = 10)
+template <size_t _size, size_t _dim>
+class equation_maker
 {
-	// вариации параметров
-	auto vars = interface.variations();
-	// невязка на предыдущем шаге спуска
-	double ext_resid{};
-	// номер итерации спуска
-	size_t ext_iteration{1};
-	// цикл спуска
-	for (; ext_iteration <= maxiter; ++ext_iteration)
-	{
-		// градиент функции невязок
-		vec<param> gradient;
-		{
-			// массив невязок
-			double residuals[param + 1]{};
-			// массив векторов с параметрами, где последний вектор неизменённый, а остальные с вариациями
-			vec<param> var_params[param + 1]{};
-			for (size_t i{}; i < param; ++i)
-			{
-				auto &ref = var_params[i] = params;
-				ref[i] += vars[i];
-			}
-			var_params[param] = params;
-			parallel_for(0, param + 1, [&var_params, &interface, &residuals](size_t i)
-						 { residuals[i] = interface.residual(var_params[i]); });
-			for (size_t i{}; i < param; ++i)
-				gradient[i] = interface.derivative((residuals[i] - residuals[param]) / vars[i], i);
-			ext_resid = residuals[param];
-		}
-		// множитель оптимизации функции F(x_n + lambda * gradient)
-		double lambda{1};
-		// невязка на предыдущем шаге уточнения множителя
-		double int_resid = interface.residual(params - gradient * lambda);
-		for (size_t int_iteration{1}; int_iteration <= maxiter; ++int_iteration)
-		{
-			constexpr double mult{0.1};
-			auto cur_resid = interface.residual(params - gradient * (lambda * (mult + 1)));
-			if (is_equal(int_resid, cur_resid, eps))
-				break;
-			lambda += (cur_resid - int_resid) / (mult * lambda);
-			int_resid = cur_resid;
-		}
-		if (is_equal(ext_resid, int_resid, eps))
-			break;
-		params -= gradient * lambda;
-	}
-	return std::min(ext_iteration, maxiter);
-}
-
-template <size_t _size>
-class jacoby_matrix
-{
-	optimization_interface<_size> const &_interface;
-	vec<_size + 1> _dv;
+	optimization_interface<_size, _dim> const &_interface;
+	double _dv[_size + 1]{};
 
 public:
-	explicit jacoby_matrix(optimization_interface<_size> const &interface) : _interface{interface}
+	equation_maker(optimization_interface<_size, _dim> const &interface) : _interface{interface}
 	{
 		auto dv = interface.variations();
 		for (size_t i{}; i < _size; ++i)
 			_dv[i] = dv[i];
 	}
-	std::pair<mat<_size, 1>, double> operator()(vec<_size> const &v) const
+	double operator()(vec<_size> const &v, matrix &dm, vector &rv) const
 	{
-		// массив невязок
-		double residuals[_size + 1]{};
+		// указатели на начало массивов, куда будут записываться невязки (строки матрицы из частных производных и вектор невязок)
+		array_view<_dim> *ptrs[_size + 1];
+		for (std::size_t i{}; i < _size; ++i)
+			ptrs[i] = reinterpret_cast<array_view<_dim> *>(dm[i]);
+		ptrs[_size] = reinterpret_cast<array_view<_dim> *>(rv.data());
 		// функция вычисления невязок по векторам с вариациями
-		auto compute_func = [&v, this, &residuals](size_t i)
+		auto compute_func = [&v, &ptrs, this](std::size_t i)
 		{
+			auto j = i % _size;
 			vec<_size> p{v};
 			// добавляем вариацию
-			p[i] += _dv[i];
-			// рассчитываем значение функции невязок
-			residuals[i] = _interface.residual(p);
+			p[j] += _dv[i];
+			// заполняем вектор невязок
+			_interface.residual(p, ptrs[i]);
 		};
-		parallel_for(0, _size + 1, compute_func);
-		// матрица из частных производных
-		mat<_size, 1> mx;
-		for (size_t i{}; i < _size; ++i)
-			mx[i][0] = _interface.derivative((residuals[i] - residuals[_size]) / _dv[i], i);
-		return std::make_pair(mx, residuals[_size]);
+		par::parallel_for(size_t{}, _size + 1, compute_func, _size + 1);
+		// формируем матрицу из частных производных
+		for (std::size_t r{}; r < dm.rows(); ++r)
+		{
+			for (std::size_t c{}; c < dm.columns(); ++c)
+			{
+				double &val = dm[r][c];
+				val -= rv[c];
+				val /= _dv[r];
+			}
+		}
+		return residual_function(rv);
 	}
 };
 
-template <size_t _size>
-struct temporary_params
+struct optimization_info
 {
-	double m{5};
+	/**
+	 * @brief Множитель в матрице из алгоритма Левенберга-Марквардта
+	 *
+	 */
+	double m{};
+	/**
+	 * @brief Значение функции невязок
+	 *
+	 */
 	double r{};
-	mat<_size, 1> dv;
+	/**
+	 * @brief Корректирующие значения параметров
+	 *
+	 */
+	vector dv;
 };
 
-template <size_t _size>
+template <std::size_t _size, std::size_t _dim>
 class optimization_helper
 {
-	optimization_interface<_size> const &_interface;
+	optimization_interface<_size, _dim> const &_interface;
 	vec<_size> const &_v;
-	mat<_size, 1> const &_jm;
-	mat<_size, _size> _sm;
+	vector _rv;
+	matrix _sm;
 
 public:
-	optimization_helper(optimization_interface<_size> const &interface, vec<_size> const v, mat<_size, 1> const jm) : _interface{interface}, _v{v}, _jm{jm}
+	optimization_helper(optimization_interface<_size, _dim> const &interface, vec<_size> const &v, matrix const &jm, vector const &rv) : _interface{interface}, _v{v}
 	{
-		_sm = _jm * transpose(_jm);
+		_sm = jm * transpose(jm);
+		_rv = jm * rv;
 	}
-	void operator()(temporary_params<_size> &p, double resid) const
+	void operator()(optimization_info &p) const
 	{
 		double mult{p.m + 1};
-		mat<_size, _size> sys_mx{_sm};
+		matrix sys_mx{_sm};
 		for (size_t i{}; i < _size; ++i)
 			sys_mx[i][i] *= mult;
-		p.dv = inverse(sys_mx) * (_jm * (-resid));
+		inverse(sys_mx);
+		p.dv = sys_mx * _rv;
 		vec<_size> v{_v};
 		for (size_t j{}; j < _size; ++j)
-			v[j] += p.dv[j][0];
-		p.r = _interface.residual(v);
+			v[j] -= p.dv[j];
+		vector rv(_interface.points_count() * _dim);
+		_interface.residual(v, reinterpret_cast<array_view<_dim> *>(rv.data()));
+		p.r = residual_function(rv);
 	}
 };
 
-template <size_t _size>
-auto optimize_multiplier(optimization_helper<_size> const &helper, temporary_params<_size> &res, double eps, size_t maxiter)
+template <typename T, std::size_t size>
+constexpr std::size_t array_size(T const (&arr)[size])
 {
-	// невязка на входе
-	double resid{res.r};
-	// i-1 and i
-	temporary_params<_size> tmp_arr[2]{res};
-	// индексы на i - 1 и i итерациях
-	size_t prev{}, next{1};
-	// сдвигаем на единицу вправо
-	tmp_arr[next].m = tmp_arr[prev].m + 1;
-	// вычисляем для i - 1 -го
-	helper(tmp_arr[prev], resid);
+	return size;
+}
+
+template <std::size_t _size, std::size_t _dim>
+void optimize_multiplier(optimization_helper<_size, _dim> const &helper, optimization_info &res, double eps, size_t maxiter)
+{
+	double mul = 0.1;
 	for (size_t iteration{1}; iteration <= maxiter; ++iteration)
 	{
-		// рассчитываем на i-ом шаге
-		helper(tmp_arr[next], resid);
+		optimization_info info_arr[3]{};
+		info_arr[0].m = 0.5 * mul;
+		info_arr[1].m = mul;
+		info_arr[2].m = 1.5 * mul;
+		par::parallel_for(std::size_t{}, array_size(info_arr), [&helper, &info_arr](std::size_t i)
+						  { helper(info_arr[i]); });
 		//  условие, что вариация множителя вызывает ощутимое изменение невязки
-		bool equal = is_equal_or_greater(tmp_arr[prev].r, tmp_arr[next].r, eps);
-		if (tmp_arr[next].r < res.r)
-		{
-			// обновление
-			res = tmp_arr[next];
-		}
+		bool stop = is_equal(info_arr[0].r, info_arr[2].r, eps);
+		stop |= info_arr[0].r > info_arr[1].r && info_arr[2].r > info_arr[1].r;
+		// обновление
+		if (info_arr[1].r < res.r)
+			res = info_arr[1];
 		// проверка условия останова
-		if (equal)
+		if (stop)
 			break;
 		// коррекция множителя
-		auto cor = tmp_arr[prev].r * (tmp_arr[next].m - tmp_arr[prev].m) / (tmp_arr[next].r - tmp_arr[prev].r);
-		tmp_arr[prev].m -= cor;
-		// меняем индексы местами
-		std::swap(next, prev);
+		auto cor = (info_arr[0].m - info_arr[2].m) / (info_arr[0].r - info_arr[2].r);
+		if (cor > 0)
+			mul *= 0.5;
+		else
+			mul *= 1.5;
 	}
-	// // выстраиваем значения множителя в порядке возрастания
-	// if (tmp_arr[next].m < tmp_arr[prev].m)
-	// 	std::swap(next, prev);
-	// // золотое сечение
-	// constexpr auto golden_ratio_inv{1 / 1.618};
-	// for (size_t iteration{1}; iteration < maxiter; ++iteration)
-	// {
-	// 	auto delta = (tmp_arr[next].m - tmp_arr[prev].m) * golden_ratio_inv;
-	// 	auto next_m = tmp_arr[next].m;
-	// 	auto prev_m = tmp_arr[prev].m;
-	// 	tmp_arr[next].m = prev_m + delta;
-	// 	tmp_arr[prev].m = next_m - delta;
-	// 	parallel_for(0, 2, [&tmp_arr, &helper, resid](size_t i)
-	// 				 { helper(tmp_arr[i], resid); });
-	// 	// если значение невязки в левом значении больше, чем в правом, то сдвигаем левый конец
-	// 	if (tmp_arr[prev].r > tmp_arr[next].r)
-	// 		tmp_arr[next].m = next_m;
-	// 	// иначе правый
-	// 	else
-	// 		tmp_arr[prev].m = prev_m;
-	// 	bool equal = is_equal(tmp_arr[next].m, tmp_arr[prev].m, eps);
-	// 	if (equal)
-	// 	{
-	// 		break;
-	// 		res = tmp_arr[next];
-	// 	}
-	// }
 }
 
 /**
@@ -296,7 +210,7 @@ auto optimize_multiplier(optimization_helper<_size> const &helper, temporary_par
  *
  * @tparam _size размерность вектора оптимизируемых параметров
  */
-template <size_t _size>
+template <std::size_t _size>
 struct optimization_iteration
 {
 	/**
@@ -315,56 +229,63 @@ struct optimization_iteration
 	 */
 	vec<_size> v;
 	/**
-	 * @brief Вектор из частных производных
+	 * @brief Вектор невязок
 	 *
 	 */
-	vec<_size> m;
+	vector rv;
+	/**
+	 * @brief Матрица из частных производных
+	 *
+	 */
+	matrix dm;
 	/**
 	 * @brief Вектор корректирующих значений
 	 *
 	 */
-	vec<_size> dv;
+	vector dv;
 };
 
-template <size_t _size>
+template <std::size_t _size>
 class optimization_logger
 {
 public:
 	virtual void add(optimization_iteration<_size> const &) = 0;
 };
 
-template <size_t _size>
-void levenberg_marquardt(vec<_size> &params, optimization_interface<_size> const &interface, optimization_logger<_size> *logger = nullptr, double eps = 1e-3, size_t maxiter = 20)
+template <std::size_t _size, std::size_t _dim>
+void levenberg_marquardt(vec<_size> &v, optimization_interface<_size, _dim> const &interface, optimization_logger<_size> *logger = nullptr, double eps = 1e-3, size_t maxiter = 20)
 {
-	// вычислитель матрицы Якоби
-	jacoby_matrix<_size> jm(interface);
+	equation_maker<_size, _dim> eqm{interface};
+	vector rv(interface.points_count() * _dim);
+	matrix dm(_size, rv.size());
 	// параметры оптимизации множителя
-	temporary_params<_size> tmp;
+	optimization_info p;
 	// цикл спуска
 	for (size_t iteration{1}; iteration <= maxiter; ++iteration)
 	{
-		// матрица Якоби из частных производных и невязка
-		auto [jacoby_mx, ext_resid] = jm(params);
-		tmp.r = ext_resid;
+		// значение функции невязок
+		double res = eqm(v, dm, rv); // вычисление матрицы частных производных и вектора невязок
+		p.r = res;
 		// оптимизация множителя
-		optimize_multiplier(optimization_helper<_size>(interface, params, jacoby_mx), tmp, eps, maxiter);
-		bool equal = is_equal(ext_resid, tmp.r, eps);
+		optimize_multiplier(optimization_helper<_size, _dim>(interface, v, dm, rv), p, eps, maxiter);
+		bool equal = is_equal(res, p.r, eps);
 		if (logger)
 		{
 			optimization_iteration<_size> iter;
 			iter.n = iteration;
-			iter.v = params;
-			iter.r = ext_resid;
+			iter.v = v;
+			iter.r = res;
+			iter.dv = p.dv * (-1);
 			if (!equal)
 			{
-				std::copy(tmp.dv.data(), tmp.dv.data() + _size, iter.dv.data());
-				std::copy(jacoby_mx.data(), jacoby_mx.data() + _size, iter.m.data());
+				iter.rv = rv;
+				iter.dm = dm;
 			}
 			logger->add(iter);
 		}
 		if (equal)
 			return;
 		for (size_t i{}; i < _size; ++i)
-			params[i] += tmp.dv[i][0];
+			v[i] -= p.dv[i];
 	}
 }

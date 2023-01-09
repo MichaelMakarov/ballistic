@@ -14,13 +14,9 @@ add_library(
 	
 	src/vsdebug.natvis
 
-	src/vector.cpp
-	src/maths.cpp
 	src/optimize.cpp
 
 	src/times.cpp
-	src/timefmt.cpp
 )
-target_include_directories(
-	ballistic PUBLIC include
-)
+target_include_directories(ballistic PUBLIC include)
+target_link_libraries(ballistic PUBLIC mathlib queue_manager)

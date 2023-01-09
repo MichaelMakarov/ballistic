@@ -143,12 +143,17 @@ struct basic_info
      * @brief Параметры движения
      */
     vec6 v;
-
-    double s;
     /**
      * @brief Параметры промежуточных вычислений
      */
+    basic_logger<6> l;
+};
+
+struct extbasic_info
+{
+    vec6 v;
     basic_logger<7> l;
+    double s{};
 };
 
 /**
@@ -168,11 +173,11 @@ struct extended_info
     /**
      * @brief Площадь поверхности, м^2
      */
-    double square{};
+    double s{};
     /**
      * @brief Коэф-т отражения поверхности
      */
-    double refl{};
+    double r{};
 };
 
 /**
@@ -201,15 +206,20 @@ public:
      */
     std::shared_ptr<measuring_interval> inter;
     /**
-     * @brief Результаты вычислений по модели движения без учёта вращения
+     * @brief Результаты вычислений по модели движения без учёта солнечного давления
      */
     std::shared_ptr<basic_info> basic;
+    /**
+     * @brief Результаты вычислений по модели движения с учётом солнечного давления и без учёта вращения
+     *
+     */
+    std::shared_ptr<extbasic_info> extbasic;
     /**
      * @brief Результаты вычислений при оценке параметров вращения
      */
     std::shared_ptr<rotation_info> rotation;
     /**
-     * @brief Результаты вычислений по модели движения с учётом вращения
+     * @brief Результаты вычислений по модели движения с учётом солнечного давления и вращения
      */
     std::shared_ptr<extended_info> extended;
 };

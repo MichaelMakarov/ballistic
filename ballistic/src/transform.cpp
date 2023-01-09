@@ -1,5 +1,8 @@
 #include <transform.hpp>
 #include <maths.hpp>
+#include <cmath>
+
+using namespace math;
 
 void ort_to_sph(const double *const in, double *const out)
 {
@@ -37,14 +40,14 @@ void grw_to_abs_sph(const double *const in, double t, double *const out)
 {
 	out[0] = in[0];
 	out[1] = in[1];
-	out[2] = fit_to_round<round_type::zero_double_pi>(in[2] - t);
+	out[2] = fit_round<round_type::zdpi>(in[2] - t);
 }
 
 void abs_to_grw_sph(const double *const in, double t, double *const out)
 {
 	out[0] = in[0];
 	out[1] = in[1];
-	out[2] = fit_to_round<round_type::zero_double_pi>(in[2] + t);
+	out[2] = fit_round<round_type::zdpi>(in[2] + t);
 }
 
 void ecl_to_abs(const double *const in, double e, double *const out)
@@ -197,12 +200,16 @@ void transform<abs_cs, ort_cs, grw_cs, sph_cs>::backward(const double *const in,
 
 // АСК -> эклиптическая
 
-void transform<abs_cs, sph_cs, ecl_cs, sph_cs>::forward(const double *const in, double e, double *const out)
+void transform<abs_cs, ort_cs, ecl_cs, sph_cs>::forward(const double *const in, double e, double *const out)
 {
-	abs_to_ecl(in, e, out);
+	double buf[3];
+	abs_to_ecl(in, e, buf);
+	ort_to_sph(buf, out);
 }
 
-void transform<abs_cs, sph_cs, ecl_cs, sph_cs>::backward(const double *const in, double e, double *const out)
+void transform<abs_cs, ort_cs, ecl_cs, sph_cs>::backward(const double *const in, double e, double *const out)
 {
-	ecl_to_abs(in, e, out);
+	double buf[3];
+	sph_to_ort(in, buf);
+	ecl_to_abs(buf, e, out);
 }

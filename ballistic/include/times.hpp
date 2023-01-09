@@ -62,3 +62,7 @@ bool operator==(time_h, time_h);
 bool operator<=(time_h, time_h);
 bool operator>=(time_h, time_h);
 bool operator!=(time_h, time_h);
+
+std::ostream &operator<<(std::ostream &os, time_h t);
+
+std::ostream &operator<<(std::ostream &os, calendar const &c);

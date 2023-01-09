@@ -45,6 +45,9 @@ auto compute_motion_residuals(const forecast &f, const measuring_interval &inter
         p.a = sph[2];
         p.di = meas.i - p.i;
         p.da = meas.a - p.a;
+        double da = 2 * pi - p.da;
+        if (std::abs(da) < std::abs(p.da))
+            p.da = da;
     }
     return arr;
 }
@@ -92,12 +95,11 @@ auto make_round_plane(double mass, double rsquare, double refl, const vec3 &norm
 }
 
 #include <fstream>
-#include <timefmt.hpp>
 #include <iomanip>
 
 std::ostream &operator<<(std::ostream &os, const motion_params &mp)
 {
-    os << std::format("{}", mp.t) << ' ';
+    os << mp.t << ' ';
     for (size_t i{}; i < mp.v.size(); ++i)
         os << mp.v[i] << ' ';
     double buf[3]{};
@@ -125,13 +127,18 @@ void compare_models(vec6 const &v, time_h tn, time_h tk, rotator const &rot, rou
 
 //-----------------------------------------------------
 
-class basic_model_wrapper : public optimization_interface<6>
+class basic_model_wrapper : public optimization_interface<6, 2>
 {
     measuring_interval const &_inter;
     time_h _tn;
 
 public:
     basic_model_wrapper(measuring_interval const &inter, time_h tn) : _inter{inter}, _tn{tn} {}
+
+    std::size_t points_count() const override
+    {
+        return _inter.points_count();
+    }
 
     vec<6> variations() const override
     {
@@ -141,23 +148,25 @@ public:
         return v;
     }
 
-    double derivative(double deriv, size_t index) const override
+    void update(double &value, size_t index, double add) const override
     {
-        return deriv;
+        value += add;
     }
 
-    double residual(vec<6> const &v) const override
+    void residual(vec<6> const &v, array_view<2> *const r) const override
     {
         motion_params mp{.v = subv<0, 5>(v), .t = _tn};
         auto res = compute_basic(mp, _inter);
-        double val{};
-        for (auto &p : res)
-            val += sqr(p.di) + sqr(p.da);
-        return val;
+        for (std::size_t i{}; i < res.size(); ++i)
+        {
+            auto &p = res[i];
+            r[i][0] = p.di;
+            r[i][1] = p.da;
+        }
     }
 };
 
-class extbasic_model_wrapper : public optimization_interface<7>
+class extbasic_model_wrapper : public optimization_interface<7, 2>
 {
     measuring_interval const &_inter;
     time_h _tn;
@@ -165,6 +174,11 @@ class extbasic_model_wrapper : public optimization_interface<7>
 
 public:
     extbasic_model_wrapper(measuring_interval const &inter, time_h tn, double m) : _inter{inter}, _tn{tn}, _mass{m} {}
+
+    std::size_t points_count() const override
+    {
+        return _inter.points_count();
+    }
 
     vec<7> variations() const override
     {
@@ -175,46 +189,29 @@ public:
         return v;
     }
 
-    double derivative(double deriv, size_t index) const override
+    void update(double &value, size_t index, double add) const override
     {
+        value += add;
         if (index == 6)
-            deriv = sign(deriv);
+            value = std::min(1e2, std::max(0.0, value));
         if (index > 6)
             throw std::out_of_range("Индекс параметра за пределами диапазона.");
-        return deriv;
     }
 
-    double residual(vec<7> const &v) const override
+    void residual(vec<7> const &v, array_view<2> *const r) const override
     {
         motion_params mp{.v = subv<0, 5>(v), .t = _tn};
         auto res = compute_extbasic(mp, _inter, v[6], _mass);
-        double val{};
-        for (auto &p : res)
-            val += sqr(p.di) + sqr(p.da);
-        return val;
+        for (std::size_t i{}; i < res.size(); ++i)
+        {
+            auto &p = res[i];
+            r[i][0] = p.di;
+            r[i][1] = p.da;
+        }
     }
 };
 
-#include <iostream>
-
-void estimate_basic_model(measuring_interval const &inter, time_h t, round_plane const &p, basic_info &info)
-{
-    basic_logger<6> l;
-    vec<6> v{info.v};
-    basic_model_wrapper mwb(inter, t);
-    levenberg_marquardt(v, mwb, &l);
-    std::cout << "Model 1 residual = " << l.back().r << std::endl;
-    vec<7> params;
-    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), params.data());
-    params[6] = (1 + p.refl) * p.square;
-    extbasic_model_wrapper mw(inter, t, p.mass);
-    levenberg_marquardt(params, mw, &info.l);
-    std::copy(params.data(), end, info.v.data());
-    info.s = params[6];
-    std::cout << "Model 2 residual = " << info.l.back().r << std::endl;
-}
-
-class extended_model_wrapper : public optimization_interface<7>
+class extended_model_wrapper : public optimization_interface<7, 2>
 {
     measuring_interval const &_inter;
     time_h _tn;
@@ -224,6 +221,11 @@ class extended_model_wrapper : public optimization_interface<7>
 public:
     extended_model_wrapper(measuring_interval const &inter, time_h tn, rotator const &r, round_plane const &p) : _inter{inter}, _tn{tn}, _rot{r}, _plane{p} {}
 
+    std::size_t points_count() const override
+    {
+        return _inter.points_count();
+    }
+
     vec<7> variations() const override
     {
         vec<7> v;
@@ -233,36 +235,56 @@ public:
         return v;
     }
 
-    double derivative(double deriv, size_t index) const override
+    void update(double &value, size_t index, double add) const override
     {
+        value += add;
         if (index == 6)
-            deriv = sign(deriv);
-        if (index > 7)
+            value = std::min(1e2, std::max(0.0, value));
+        if (index > 6)
             throw std::out_of_range("Индекс параметра за пределами диапазона.");
-        return deriv;
     }
 
-    double residual(vec<7> const &v) const override
+    void residual(vec<7> const &v, array_view<2> *const r) const override
     {
         motion_params mp{.v = subv<0, 5>(v), .t = _tn};
         auto p = _plane;
         p.square = v[6];
         auto res = compute_extended(mp, _inter, _rot, make_plane(p));
-        double val{};
-        for (auto &p : res)
-            val += sqr(p.di) + sqr(p.da);
-        return val;
+        for (std::size_t i{}; i < res.size(); ++i)
+        {
+            auto &p = res[i];
+            r[i][0] = p.di;
+            r[i][1] = p.da;
+        }
     }
 };
 
-void estimate_extended_model(measuring_interval const &inter, time_h t, round_plane const &p, rotator const &r, extended_info &info)
+constexpr std::size_t iterations{30};
+
+void estimate_model(measuring_interval const &inter, time_h t, basic_info &info)
 {
-    vec<7> params;
-    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), params.data());
-    params[6] = p.square;
+    basic_model_wrapper mwb(inter, t);
+    levenberg_marquardt(info.v, mwb, &info.l, 1e-3, iterations);
+}
+
+void estimate_model(measuring_interval const &inter, time_h t, round_plane const &p, extbasic_info &info)
+{
+    vec<7> v;
+    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), v.data());
+    v[6] = (1 + p.refl) * p.square;
+    extbasic_model_wrapper mw(inter, t, p.mass);
+    levenberg_marquardt(v, mw, &info.l, 1e-3, iterations);
+    std::copy(v.data(), end, info.v.data());
+    info.s = v[6];
+}
+
+void estimate_model(measuring_interval const &inter, time_h t, round_plane const &p, rotator const &r, extended_info &info)
+{
+    vec<7> v;
+    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), v.data());
+    v[6] = p.square;
     extended_model_wrapper mw(inter, t, r, p);
-    levenberg_marquardt(params, mw, &info.l);
-    std::copy(params.data(), end, info.v.data());
-    info.square = params[6];
-    std::cout << "Model 3 residual = " << info.l.back().r << std::endl;
+    levenberg_marquardt(v, mw, &info.l, 1e-3, iterations);
+    std::copy(v.data(), end, info.v.data());
+    info.s = v[6];
 }

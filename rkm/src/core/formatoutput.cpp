@@ -1,5 +1,4 @@
-#include <formatting.hpp>
-#include <timefmt.hpp>
+#include <formatoutput.hpp>
 #include <transform.hpp>
 #include <fstream>
 #include <functional>
@@ -140,18 +139,27 @@ void print_vec(std::ostream &os, vec<size> const &v, char sep)
     print_vec<size>(os, v.data(), sep);
 }
 
-template <size_t size>
-void print_cor(std::ostream &os, vec<size> const &v)
+void print_cor(std::ostream &os, vector const &v)
 {
     for (size_t i{}; i < v.size(); ++i)
         os << delta << coordinates[i] << equal << v[i] << dimensions[i] << ' ';
 }
 
-template <size_t size>
-void print_mat(std::ostream &os, vec<size> const &v)
+void print_mat(std::ostream &os, matrix const &m, vector const &v)
 {
-    for (size_t i{}; i < v.size(); ++i)
-        os << delta << "r/" << delta << coordinates[i] << equal << v[i] << " 1/" << dimensions[i] << ' ';
+    constexpr const char *arr[2]{phi, lambda};
+    for (std::size_t c{}, n{1}; c < m.columns(); ++n)
+    {
+        os << "Измерение № " << n << std::endl;
+        for (std::size_t i{}; i < 2; ++i, ++c)
+        {
+            for (std::size_t r{}; r < m.rows(); ++r)
+            {
+                os << delta << arr[i] << '/' << delta << coordinates[r] << equal << m[r][c] << ' ';
+            }
+            os << delta << arr[i] << equal << v[c] << std::endl;
+        }
+    }
 }
 
 template <size_t _size>
@@ -166,8 +174,8 @@ void print_iteration(std::ostream &os, const optimization_iteration<_size> &i)
     os << "Коррект. вектор ";
     print_cor(os, i.dv);
     os << std::endl;
-    os << "Градиент ";
-    print_mat(os, i.m);
+    os << "Невязки и частные производные\n";
+    // print_mat(os, i.dm, i.rv);
 }
 
 template <size_t size>
@@ -181,71 +189,73 @@ void print_log(std::ostream &os, basic_logger<size> const &l)
     }
 }
 
-void print_basic(std::ostream &os, const basic_info &m, bool full)
+template <std::size_t size>
+void print_residual(std::ostream &os, basic_logger<size> const &l, bool full)
 {
-    os << "Уточненные параметры движения\n";
-    print_vec(os, m.v, separator(full));
-    os << std::endl;
     if (full)
     {
         os << "Оптимизация параметров \n";
-        print_log(os, m.l);
+        print_log(os, l);
         os << std::endl;
     }
     else
     {
-        if (!m.l.empty())
-            os << "Функция невязок = " << m.l.back().r << separator(full);
+        if (!l.empty())
+            os << "Функция невязок = " << l.back().r << separator(full);
         else
             os << "Невязка не рассчитана из-за ошибки\n";
     }
 }
 
+void print_mp(std::ostream &os, vec6 const &v, bool full)
+{
+    os << "Уточненные параметры движения\n";
+    print_vec(os, v, separator(full));
+    os << std::endl;
+}
+
+void print_basic(std::ostream &os, const basic_info &m, bool full)
+{
+    print_mp(os, m.v, full);
+    print_residual(os, m.l, full);
+}
+
+void print_extbasic(std::ostream &os, extbasic_info const &m, bool full)
+{
+    print_mp(os, m.v, full);
+    os << "s пов-ти " << m.s << "(м^2)" << std::endl;
+    print_residual(os, m.l, full);
+}
+
 void print_ext(std::ostream &os, const extended_info &m, bool full)
 {
-    char sep = separator(full);
-    os << "Уточненные параметры движения\n";
-    print_vec(os, m.v, sep);
-    os << "s пов-ти = " << m.square << "(м^2)" << sep;
-    os << epsilon << equal << m.refl << std::endl;
-    if (full)
-    {
-        os << "Оптимизация параметров \n";
-        print_log(os, m.l);
-        os << std::endl;
-    }
-    else
-    {
-        if (!m.l.empty())
-            os << "Функция невязок = " << m.l.back().r << separator(full);
-        else
-            os << "Невязка не рассчитана из-за ошибки\n";
-    }
+    print_mp(os, m.v, full);
+    os << "s пов-ти = " << m.s << "(м^2) " << epsilon << equal << m.r << std::endl;
+    print_residual(os, m.l, full);
 }
 
 void print_tle(std::ostream &os, const orbit_data &d, bool full)
 {
     auto sep = separator(full);
-    std::format_to(std::ostream_iterator<char>{os}, "T = {} ", d.t);
+    os << "T = " << d.t;
     os << "\nПараметры движения" << sep;
     print_vec<6>(os, d.v, sep);
 }
 
 void print_interval(std::ostream &os, measuring_interval const &inter, bool full)
 {
-    std::format_to(std::ostream_iterator<char>{os}, "{} - {} кол-во измерений {}", inter.tn(), inter.tk(), inter.points_count());
+    os << inter.tn() << " - " << inter.tk() << " кол-во измерений " << inter.points_count() << std::endl;
     if (!full)
         return;
     auto [begin, end] = seance_iterators(inter);
-    for (size_t i{1}; begin != end; ++begin)
+    for (size_t i{}, j{}; begin != end; ++begin)
     {
-        os << "Сеанс № " << i << " обсерватория " << begin->id << ' ';
+        os << "Сеанс № " << ++i << " обсерватория " << begin->id << ' ';
         print_vec<3>(os, begin->o, separator(full));
         os << " кол-во измерений " << begin->m.size() << std::endl;
-        for (size_t j{}; j < begin->m.size(); ++j)
+        for (auto &meas : begin->m)
         {
-            auto &meas = begin->m[j];
-            std::format_to(std::ostream_iterator<char>{os}, "Измерение № {} T = {} ", j + 1, meas.t);
+            os << "Измерение № " << ++j << " T =  " << meas.t << ' ';
             os << lambda << equal << rad_to_deg(meas.i) << degree << ' ';
             os << phi << equal << rad_to_deg(meas.a) << degree << ' ';
             os << "зв.вел." << equal << meas.m << '\n';
@@ -258,12 +268,12 @@ void print_rot(std::ostream &os, rotation_info const &r, bool full)
     auto sep = separator(full);
     double buf[3]{};
     ::transform<abs_cs, sph_cs, abs_cs, ort_cs>::backward(r.r.axis.data(), buf);
-    std::format_to(std::ostream_iterator<char>{os}, "Тн = {} ", r.r.tn);
+    os << "Тн =  " << r.r.tn;
     os << sep << "ось вращения " << sep;
     os << lambda << equal << rad_to_deg(buf[1]) << degree << sep;
     os << phi << equal << rad_to_deg(buf[2]) << degree << sep;
     auto precision = os.precision();
-    os << omega << equal << std::setprecision(9) << sec_to_days(rad_to_deg(r.r.vel)) << degree << "/сут" << sep;
+    os << omega << equal << std::setprecision(9) << rad_to_deg(r.r.vel) << degree << "/c" << sep;
     os << std::setprecision(precision);
     if (full)
     {
@@ -276,7 +286,8 @@ void print_rot(std::ostream &os, rotation_info const &r, bool full)
 
 void print_output(std::ostream &os, computational_output const &o, bool full)
 {
-    os << std::setprecision(3) << std::fixed;
+    int prec = full ? 6 : 3;
+    os << std::setprecision(prec) << std::fixed;
     if (o.refer)
     {
         os << "Опорный ТЛЕ\n";
@@ -291,8 +302,14 @@ void print_output(std::ostream &os, computational_output const &o, bool full)
     }
     if (o.basic)
     {
-        os << "Оптимизация без учета вращения\n";
+        os << "Оптимизация без учета солнечного давления\n";
         print_basic(os, *o.basic, full);
+        os << std::endl;
+    }
+    if (o.extbasic)
+    {
+        os << "Оптимизация с учётом солнечного давления и без учёта вращения\n";
+        print_extbasic(os, *o.extbasic, full);
         os << std::endl;
     }
     if (o.rotation)
@@ -303,7 +320,7 @@ void print_output(std::ostream &os, computational_output const &o, bool full)
     }
     if (o.extended)
     {
-        os << "Оптимизация с учетом вращения\n";
+        os << "Оптимизация с учетом солнечного давления и вращения\n";
         print_ext(os, *o.extended, full);
         os << std::endl;
     }

@@ -24,7 +24,7 @@ set(
 	src/core/motion.cpp
 	src/core/rotation.cpp
 	src/core/forecast.cpp
-	src/core/formatting.cpp	
+	src/core/formatoutput.cpp	
 	src/core/settings.cpp
 )
 

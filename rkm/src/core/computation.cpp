@@ -18,7 +18,7 @@ time_h final_interval_time(observ_iter begin, observ_iter end)
     return iter->m.back().t;
 }
 
-measuring_interval::measuring_interval(observ_iter begin, observ_iter end) : _begin{begin}, _end{end}, _tn{}, _tk{}
+measuring_interval::measuring_interval(observ_iter begin, observ_iter end) : _begin{begin}, _end{end}, _tn{std::numeric_limits<long long>::max()}, _tk{}
 {
     _count = 0;
     for (auto iter = begin; iter != end; ++iter)
@@ -42,6 +42,7 @@ void computational_output::move(computational_output &other) noexcept
     refer = std::move(other.refer);
     inter = std::move(other.inter);
     basic = std::move(other.basic);
+    extbasic = std::move(other.extbasic);
     rotation = std::move(other.rotation);
     extended = std::move(other.extended);
 }
