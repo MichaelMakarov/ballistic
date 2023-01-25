@@ -4,6 +4,8 @@
 
 using namespace math;
 
+using vec42 = vec<42>;
+
 /**
  * @brief Базовая модель движения центра масс
  *
@@ -19,6 +21,18 @@ public:
 public:
     explicit basic_model(size_t harmonics);
     vec6 operator()(const vec6 &v, const time_h &t);
+};
+
+class basic_model1
+{
+    geopotential _gpt;
+
+public:
+    interval<double> heights{1e5, 1e8};
+
+public:
+    explicit basic_model1(std::size_t harmonics);
+    vec42 operator()(vec42 const &v, time_h const &t);
 };
 
 class extbasic_model : public basic_model

@@ -4,6 +4,8 @@
 #include <list>
 #include <memory>
 
+using namespace math;
+
 /**
  * @brief Мерный интервал
  *

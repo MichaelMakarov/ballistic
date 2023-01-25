@@ -1,27 +1,18 @@
 #include <optimize.hpp>
-#include <string>
-#include <queue>
-#include <future>
-#include <vector>
-#include <memory>
-#include <atomic>
 
-void throw_if_index_out_of_range(size_t i, size_t supr)
+namespace math
 {
-	supr -= 1;
-	if (i > supr)
+
+	bool is_equal(double oldval, double newval, double eps)
 	{
-		std::string msg = "Инлекс вне диапазона (" + std::to_string(i) + " > " + std::to_string(supr) + ").";
-		throw std::invalid_argument(msg);
+		if (std::abs(newval - oldval) < eps)
+			return true;
+		return std::abs(1 - newval / oldval) < eps;
 	}
-}
 
-bool is_equal(double oldval, double newval, double eps)
-{
-	return std::abs(1 - newval / oldval) < eps;
-}
+	double residual_function(vector const &v)
+	{
+		return v * v;
+	}
 
-bool is_equal_or_greater(double oldval, double newval, double eps)
-{
-	return oldval < newval || is_equal(oldval, newval, eps);
 }

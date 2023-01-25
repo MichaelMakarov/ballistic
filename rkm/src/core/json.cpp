@@ -254,7 +254,7 @@ auto load_brightness_data(const std::string_view obs_filename, const std::string
 
 		for (const auto &m : s.track)
 		{
-			if (m[3] == 0 || m[0] == 0 || m[1] == 0)
+			if (m[3] == 0 || m[2] == 0 || m[1] == 0)
 				continue;
 			measurement_data b{};
 			b.t = tn + m[0];

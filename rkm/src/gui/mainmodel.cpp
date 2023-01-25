@@ -141,12 +141,9 @@ public:
     void compute(computational_output &output, size_t tle_index, double interval)
     {
         verify();
-        if (!output.refer)
-        {
-            // начальные условия из ТЛЕ
-            output.refer = std::make_shared<orbit_data>();
-            *output.refer = tles.at(tle_index);
-        }
+        // начальные условия из ТЛЕ
+        output.refer = std::make_shared<orbit_data>();
+        *output.refer = tles.at(tle_index);
         // начальный момент времени
         auto tn = output.refer->t;
         // конечный момент времени
@@ -161,12 +158,14 @@ public:
         size_t number = inter.points_count();
         if (number <= 7)
         {
-            throw std::runtime_error(format("Недостаточное кол-во измерений % на интервале % - %.", number, tn, tk));
+            throw_runtime_error("Недостаточное кол-во измерений % на интервале % - %.", number, tn, tk);
         }
         // мерный интервал
         output.inter = std::make_shared<measuring_interval>(inter);
         auto func = [&output, tn](std::size_t i)
         {
+            if (i != 0)
+                return;
             if (i == 0)
             {
                 // решение по базовой модели
@@ -211,15 +210,15 @@ private:
     {
         if (egm::harmonics.empty())
         {
-            throw std::runtime_error("Гармоники геопотенциала Земли не загружены.");
+            throw_runtime_error("Гармоники геопотенциала Земли не загружены.");
         }
         if (tles.empty())
         {
-            throw std::runtime_error("Данные TLE отсутствуют.");
+            throw_runtime_error("Данные TLE отсутствуют.");
         }
         if (seances.empty())
         {
-            throw std::runtime_error("Данные измерений отсутствуют.");
+            throw_runtime_error("Данные измерений отсутствуют.");
         }
     }
 };

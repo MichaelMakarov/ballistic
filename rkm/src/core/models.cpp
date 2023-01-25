@@ -27,25 +27,62 @@ vec6 basic_model::operator()(const vec6 &v, const time_h &t)
     // координаты Луны
     double moon[3]{};
     // среднее звёздное время
-    double st = sidereal_time_mean(t);
+    double st = sidereal_time(t);
 
     // вычисляем влияние геопотенциала
     _gpt.acceleration(v.data(), buf);
     for (size_t i{}; i < 3; ++i)
         dv[i + 3] += buf[i];
 
-    solar_model::coordinates(t, buf);
-    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, sun);
-    mass_acceleration(v.data(), sun, solar_model::mu(), buf);
-    for (size_t i{}; i < 3; ++i)
-        dv[i + 3] += buf[i];
+    // solar_model::coordinates(t, buf);
+    // transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, sun);
+    // mass_acceleration(v.data(), sun, solar_model::mu(), buf);
+    // for (size_t i{}; i < 3; ++i)
+    //     dv[i + 3] += buf[i];
 
-    lunar_model::coordinates(t, buf);
-    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, moon);
-    mass_acceleration(v.data(), moon, lunar_model::mu(), buf);
-    for (size_t i{}; i < 3; ++i)
-        dv[i + 3] += buf[i];
+    // lunar_model::coordinates(t, buf);
+    // transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, moon);
+    // mass_acceleration(v.data(), moon, lunar_model::mu(), buf);
+    // for (size_t i{}; i < 3; ++i)
+    //     dv[i + 3] += buf[i];
 
+    return dv;
+}
+
+vec42 basic_model1::operator()(vec42 const &v, time_h const &t)
+{
+    double h = height_above_ellipsoid(v.data(), egm::rad, egm::flat);
+    if (!heights(h))
+        throw std::runtime_error(format("При t = % высота h = % вышла за пределы ограничений % - %.", t, h, heights.begin, heights.end));
+    // вектор производных
+    vec42 dv;
+    // производные потенциала
+    double du[3]{};
+    // вторые производные потенциала
+    double ddu[3][3]{};
+    _gpt.acceleration(v.data() + 36, du, ddu);
+    // ускорения модели движения
+    for (std::size_t i{}; i < 3; ++i)
+        dv[36 + i] = v[36 + 3 + i];
+    dv[39] = du[0] + (egm::angv * v[0] + 2 * v[4]) * egm::angv;
+    dv[40] = du[1] + (egm::angv * v[1] - 2 * v[3]) * egm::angv;
+    dv[41] = du[2];
+    for (std::size_t k{}; k < 6; ++k)
+    {
+        std::size_t n{k * 6};
+        for (std::size_t i{}; i < 3; ++i)
+        {
+            // заполняем скорости
+            dv[n + i] = v[n + i + 3];
+            // заполняем ускорения
+            for (std::size_t j{}; j < 3; ++j)
+            {
+                dv[n + i + 3] += ddu[i][j] * v[n + j];
+            }
+        }
+        dv[n + 0 + 3] += (egm::angv * v[n + 0] + 2 * v[n + 4]) * egm::angv;
+        dv[n + 1 + 3] += (egm::angv * v[n + 1] - 2 * v[n + 3]) * egm::angv;
+    }
     return dv;
 }
 
@@ -57,7 +94,7 @@ vec6 extbasic_model::operator()(vec6 const &v, time_h const &t)
     vec3 sun;
     double buf[3]{};
     solar_model::coordinates(t, buf);
-    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, sidereal_time_mean(t), sun.data());
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, sidereal_time(t), sun.data());
     auto ac = solar_pressure(sun, subv<0, 2>(v), _coef);
     for (size_t i{}; i < ac.size(); ++i)
         dv[i + 3] += ac[i];
@@ -155,7 +192,7 @@ vec6 extended_model::operator()(const vec6 &v, const time_h &t)
 
     vec3 sun;
     solar_model::coordinates(t, sun.data());
-    double st = sidereal_time_mean(t);
+    double st = sidereal_time(t);
     vec3 p;
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::backward(v.data(), st, p.data());
 

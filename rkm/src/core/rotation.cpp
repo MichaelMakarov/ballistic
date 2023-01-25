@@ -47,31 +47,6 @@ public:
     auto end() const { return iterator(*this, count + 1); }
 };
 
-struct square_info
-{
-    /**
-     * @brief Площадь поверхности, м^2
-     *
-     */
-    double square;
-    /**
-     * @brief Отношения площадей к начальному значению
-     *
-     */
-    std::vector<double> ratios;
-
-    square_info() = default;
-    square_info(square_info &&other) noexcept : square{other.square}, ratios{std::move(other.ratios)}
-    {
-    }
-    square_info &operator=(square_info &&other) noexcept
-    {
-        std::swap(square, other.square);
-        ratios.swap(other.ratios);
-        return *this;
-    }
-};
-
 struct surface_normal : vec3
 {
     surface_normal(double incl, double asc)
@@ -107,7 +82,7 @@ double cos_phase_angle(const double *o, const double *v, time_h t)
     double buf[3]{};
     solar_model::coordinates(t, buf);
     vec3 sun;
-    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, sidereal_time_mean(t), sun.data());
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, sidereal_time(t), sun.data());
     auto angle = cos_angle_of(sun - sat, obs - sat);
     return angle;
 }
@@ -145,23 +120,22 @@ double reflective_square(const double *obs, const double *vc, double magn, time_
 
 auto compute_surface(forecast const &f, const measuring_interval &inter)
 {
-    square_info info{};
-    info.ratios.resize(inter.points_count());
+    std::vector<double> ratios(inter.points_count());
     auto begin = std::begin(inter);
     auto end = std::end(inter);
     for (size_t i{}; begin != end; ++begin, ++i)
     {
         auto &meas = begin.measurement();
         auto mp = f.point(meas.t);
-        auto sq = reflective_square(begin.seance().o, mp.v.data(), meas.m, meas.t);
-        info.ratios[i] = sq;
+        auto sq = reflective_square(begin.seance().o, mp.data(), meas.m, meas.t);
+        ratios[i] = sq;
     }
-    info.square = info.ratios.front();
-    auto mult = 1 / info.square;
-    for (auto &elem : info.ratios)
+    auto square = ratios.front();
+    auto mult = 1 / square;
+    for (auto &elem : ratios)
         elem *= mult;
-    info.ratios.erase(std::begin(info.ratios));
-    return info;
+    ratios.erase(std::begin(ratios));
+    return std::make_pair(std::move(ratios), square);
 }
 
 auto compute_surface(const measuring_interval &inter, const vec<5> &params)
@@ -299,14 +273,10 @@ vec<5> estimate_rotation(const std::vector<double> &ratios, const measuring_inte
 
 void estimate_rotation(measuring_interval const &inter, double const (&v)[6], time_h tn, rotation_info &info)
 {
-    // параметры движения
-    motion_params mp;
-    mp.t = tn;
-    std::copy(v, v + 6, mp.v.data());
-    auto f = make_forecast(mp, inter.tk());
-    auto surf_info = compute_surface(f, inter);
+    auto f = make_forecast(vec6{v[0], v[1], v[2], v[3], v[4], v[5]}, tn, inter.tk());
+    auto [ratios, square] = compute_surface(f, inter);
     // параметры вращения
-    auto r = estimate_rotation(surf_info.ratios, inter);
+    auto r = estimate_rotation(ratios, inter);
     info.n = surface_normal{r[3], r[4]};
     info.r = rotator{.tn = inter.tn(), .axis = surface_normal(r[0], r[1]), .vel = r[2]};
 }

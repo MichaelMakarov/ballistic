@@ -34,7 +34,7 @@ orbit_data elsetrec_to_observation(elsetrec trec)
     {
         throw std::runtime_error("не удалось выполнить процедуру приведения tle-параметров к вектору состояния по модели SGP4.");
     }
-    auto st = sidereal_time_mean(obs.t);
+    auto st = sidereal_time(obs.t);
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, egm::angv, obs.v);
     for (double &e : obs.v)
         e *= 1e3; // приведение к м и м/с

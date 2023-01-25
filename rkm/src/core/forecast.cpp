@@ -12,24 +12,24 @@
  * @return прогноз
  */
 template <typename M, typename... Args>
-auto make_forecast(const motion_params &mp, time_h tk, const Args &...args)
+auto make_forecast(const vec6 &v, time_h tn, time_h tk, const Args &...args)
 {
     constexpr size_t harmonics{16};
     M model{harmonics, args...};
-    return forecast(mp, tk, model, 30);
+    return forecast(v, tn, tk, model, 30);
 }
 
-forecast make_forecast(const motion_params &mp, time_h tk)
+forecast make_forecast(const vec6 &v, time_h tn, time_h tk)
 {
-    return make_forecast<basic_model>(mp, tk);
+    return make_forecast<basic_model>(v, tn, tk);
 }
 
-forecast make_forecast(const motion_params &mp, time_h tk, const rotator &r, const object_model &o)
+forecast make_forecast(const vec6 &v, time_h tn, time_h tk, const rotator &r, const object_model &o)
 {
-    return make_forecast<extended_model>(mp, tk, r, o);
+    return make_forecast<extended_model>(v, tn, tk, r, o);
 }
 
-forecast make_forecast(motion_params const &mp, time_h tk, double s, double m)
+forecast make_forecast(const vec6 &v, time_h tn, time_h tk, double s, double m)
 {
-    return make_forecast<extbasic_model>(mp, tk, s, m);
+    return make_forecast<extbasic_model>(v, tn, tk, s, m);
 }

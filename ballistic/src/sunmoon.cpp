@@ -5,7 +5,12 @@
 
 using namespace math;
 
-double jc2000(time_h t);
+double time_to_jd(time_h t);
+double jc2000(double jd);
+double jc2000(time_h t)
+{
+    return jc2000(time_to_jd(t));
+}
 
 constexpr double spr{1296000};
 constexpr double sec_to_rad(double sec)

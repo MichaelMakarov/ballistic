@@ -106,9 +106,17 @@ public:
 	 * @brief Вычисление значения ускорения потенциала
 	 *
 	 * @param in вектор в ГСК (x, y, z) [м]
-	 * @param out вектор (dU/dx, dU/dy, dU/dz)
+	 * @param out вектор (du/dx, du/dy, du/dz)
 	 */
-	void acceleration(const double *in, double *const out);
+	void acceleration(const double in[3], double out[3]);
+	/**
+	 * @brief Вычисление вектора из производных потенциала и матрицы вторых производных по координатам.
+	 * 
+	 * @param in вектор в ГСК (x, y, z) [м]
+	 * @param outv вектор производных потенциала (du/dx, du/dy, du/dz)
+	 * @param outm матрица вторых производных ((ddu/ddx, ddu/dxdy, ddu/dxdz), (ddu/dydx, ddu/ddy, ddudydz), (ddu/dzdx, ddu/dzdy, ddu/ddz))
+	 */
+	void acceleration(double const in[3], double outv[3], double outm[3][3]);
 };
 
 /**
@@ -177,19 +185,12 @@ struct lunar_model
 void mass_acceleration(const double *p, const double *m, double mu, double *a);
 
 /**
- * @brief Среднее звёздное время
+ * @brief Звездное время
  *
  * @param t время
  * @return звёздное время в рад
  */
-double sidereal_time_mean(time_h t);
-/**
- * @brief Истинное звездное время
- *
- * @param t время
- * @return звёздное время в рад
- */
-double sidereal_time_true(time_h t);
+double sidereal_time(time_h t);
 
 /**
  * @brief Вычисление высоты над земным эллипсоидом

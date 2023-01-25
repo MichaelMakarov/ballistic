@@ -1,19 +1,17 @@
 #include <ball.hpp>
-#include <maths.hpp>
-#include <chrono>
-
-using namespace math;
+#include <ctime>
+#include <cmath>
 
 /**
  * @brief Юлианская дата для 1 января 2000, 12:00
  *
  */
-inline constexpr auto JD2000{2451545.};
+inline constexpr auto jd2000{2451545};
 /**
  * @brief Юлианская дата для 1 января 1970, 00:00
  *
  */
-inline constexpr auto JD1970{2440587.5};
+inline constexpr auto jd1970{2440587.5};
 /**
  * @brief Кол-во микросекунд в секунде
  *
@@ -27,7 +25,7 @@ inline constexpr time_t mcs_per_day{86400 * microseconds};
 
 time_h compute_difference()
 {
-	auto loc = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+	auto loc = std::time(nullptr);
 	auto ptr = gmtime(&loc);
 	auto gnw = mktime(ptr);
 	gnw -= loc;
@@ -47,53 +45,109 @@ time_t difference()
 double time_to_jd(time_h t)
 {
 	constexpr double mult{1. / mcs_per_day};
-	return (t.mcs - difference()) * mult + JD1970;
+	return (t.mcs - difference()) * mult + jd1970;
 }
 /**
  * @brief Приведение юлианской даты ко времени
  */
 time_h jd_to_time(double jd)
 {
-	return {static_cast<long long>(jd - JD1970) * mcs_per_day + difference()};
+	return {static_cast<long long>(jd - jd1970) * mcs_per_day + difference()};
 }
-
-double jc2000(time_h t)
+/**
+ * @brief Вычисление кол-ва юлианских столетий по юлианской дате от эпохи J2000.
+ *
+ * @param jd юлианская дата
+ * @return double
+ */
+double jc2000(double jd)
 {
-	return (time_to_jd(t) - JD2000) * (1. / 36525);
+	return (jd - jd2000) * (1. / 36525);
 }
-
-double daypart(time_h t)
+/**
+ * @brief Разбиение юлианской даты.
+ *
+ * @param jd исходная юлианская дата
+ * @param jd_m юлианская дата на полночь
+ * @param frac доля суток
+ */
+void frac_jd(double jd, double &jd_m, double &frac)
 {
-	constexpr double mult{1. / mcs_per_day};
-	return ((t.mcs - difference()) % mcs_per_day) * mult;
+	frac = std::modf(jd, &jd_m);
+	// проверка на время относительно полуночи
+	if (frac >= 0.5)
+	{
+		frac -= 0.5;
+		jd_m += 0.5;
+	}
+	else
+	{
+		frac += 0.5;
+		jd_m -= 0.5;
+	}
 }
-
+#include <maths.hpp>
+/**
+ * @brief Вычисление среднего звёздного времени.
+ *
+ * @param jc юлианские столетия от эпохи J2000
+ * @param jt доля суток
+ * @return double
+ */
 double sidereal_time_mean(double jc, double jt)
 {
-	return fit_round(1.7533685592 + 6.2831853072 * jt + jc * (0.0172027918051 * 36525 + jc * (6.7707139e-6 - 4.50876e-10 * jc)));
+	return 1.7533685592 + math::pi * 2 /*egm::angv * 864008*/ * jt + jc * (0.0172027918051 * 36525 + jc * (6.77071394e-6 - 4.50876723e-10 * jc));
 }
 
-double sidereal_time_mean(time_h t)
+/**
+ * @brief Вычисление нутации в прямом восхождении.
+ *
+ * @param jc юлианские столетия от эпохи j2000
+ * @return double
+ */
+double nutation(double jc)
 {
-	return sidereal_time_mean(jc2000(t), daypart(t));
-}
-
-double sidereal_time_true(time_h t)
-{
-	double jc = jc2000(t);
-	// ecliptic inclination
+	// средний наклон эклиптики к экватору
 	double e = 0.4090928042 - (0.2269655e-3 + (0.29e-8 - 0.88e-8 * jc) * jc) * jc;
-	// solar mean anomaly
+	// средняя аномалия Солнца
 	double sa = 6.24003594 + (628.30195602 - (2.7974e-6 + 5.82e-8 * jc) * jc) * jc;
-	// difference between lunar and solar longitudes
+	// разность долготы между Солнцем и Луной
 	double d = 5.19846951 + (7771.37714617 - (3.34085e-5 - 9.21e-8 * jc) * jc) * jc;
-	// lunar mean argument of latitude
+	// аргумент широты Луны
 	double f = 1.62790193 + (8433.46615831 - (6.42717e-5 - 5.33e-8 * jc) * jc) * jc;
-	// ecliptic mean longitude of lunar ascending node
+	// долгота восходящего узла Луны на эклиптике
 	double o = 2.182438624 - (33.757045936 - (3.61429e-5 + 3.88e-8 * jc) * jc) * jc;
-	// the Earth's nutation in ascension
-	double nut =
+	// нутация в долготе
+	double n_psi =
 		-0.83386e-4 * std::sin(o) + 0.9997e-6 * std::sin(2 * o) + 0.6913e-6 * std::sin(sa) -
 		0.63932e-5 * std::sin(2 * (f - d + o)) - 0.11024e-5 * std::sin(2 * (f + o));
-	return fit_round(sidereal_time_mean(jc, daypart(t)) + nut * std::cos(e));
+	// нутация в наклоне
+	double n_eps = 0.44615e-4 * std::cos(o) + 0.27809e-5 * std::cos(2 * (f - d + o)) + 0.474e-6 * std::cos(2 * (f + o));
+	// нутация в прямом восхождении
+	double n_a = n_psi * std::cos(e + n_eps);
+	return n_a;
+}
+/**
+ * @brief Вычисление истинного звёздного времени.
+ *
+ * @param t момент времени в секундах от 1970 г
+ * @return double
+ */
+double sidereal_time_true(double jc, double jt)
+{
+	// среднее звёздное время + нутация
+	return sidereal_time_mean(jc, jt) + nutation(jc);
+}
+
+double sidereal_time(time_h t)
+{
+	// юлианская дата
+	double jd{};
+	// доля суток
+	double jt{};
+	frac_jd(time_to_jd(t), jd, jt);
+	// юлианские столетия
+	double jc = jc2000(jd + jt);
+
+	return sidereal_time_true(jc, jt);
 }
