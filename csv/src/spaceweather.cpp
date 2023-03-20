@@ -7,7 +7,7 @@
 
 struct spaceweather_node
 {
-    double kp[8];
+    double kp;
     double f10_7;
     double f81;
     time_t t;
@@ -32,24 +32,20 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     {
         throw_runtime_error("Failed to read time from line %. %", row, ex.what());
     }
-    for (std::size_t i{}; i < 2; ++i)
+    for (std::size_t i{}; i < 11; ++i)
     {
         end = field_end(str, begin = end + 1);
     }
-    for (std::size_t i{}; i < 8; ++i)
+    try
     {
-        end = field_end(str, begin = end + 1);
-        try
-        {
-            if (end - begin > 1)
-                node.kp[i] = to_double(str, begin, end);
-        }
-        catch (std::exception const &ex)
-        {
-            throw_runtime_error("Failed to read kp[%] from line %. %", i + 1, row, ex.what());
-        }
+        if (end - begin > 1)
+            node.kp = to_double(str, begin, end) * (1e-1 / 8);
     }
-    for (std::size_t i{}; i < 15; ++i)
+    catch (std::exception const &ex)
+    {
+        throw_runtime_error("Failed to read kp sum from line %. %", row, ex.what());
+    }
+    for (std::size_t i{}; i < 14; ++i)
     {
         end = field_end(str, begin = end + 1);
     }
@@ -125,8 +121,7 @@ public:
         }
         std::size_t index = (t - _tn) / day;
         auto &node = _nodes[index];
-        index = (t - node.t) / hour3;
-        return spaceweather{.kp = node.kp[index], .f10_7 = node.f10_7, .f81 = node.f81};
+        return spaceweather{.kp = node.kp, .f10_7 = node.f10_7, .f81 = node.f81};
     }
 };
 

@@ -285,7 +285,7 @@ public:
 template <>
 class coefficient_data<coefficient::A>
 {
-    static constexpr double values[9]{-2.53418e-2, -2.44075e-3, 3.08389e-6, 2.90115e-6, -4.99606e-8, 3.36327e-10, -1.0966e-13, 1.73227e-15, -1.06271e-18};
+    static constexpr double values[9]{-2.53418e-2, -2.44075e-3, 3.08389e-6, 2.90115e-6, -4.99606e-8, 3.36327e-10, -1.0966e-12, 1.73227e-15, -1.06271e-18};
     ;
 
 public:
@@ -295,7 +295,7 @@ public:
     }
 };
 
-auto isa_index(double f81)
+auto isa_from_table(double f81)
 {
     constexpr double isa_thresholds[7]{75, 100, 125, 150, 175, 200, 250};
     std::size_t index{};
@@ -334,7 +334,7 @@ double atmosphere2004_dynamic(double const *pos, double h,
                               int day, double lg, double incl,
                               double f10_7, double f81, double kp)
 {
-    auto [index, f0] = isa_index(f81);
+    auto [index, f0] = isa_from_table(f81);
 
     auto &l = coefficient_data<coefficient::l>::get(h, index);
     double k0 = 1 + compute_polynomial(h, l) * (f81 - f0) / f0;
@@ -364,8 +364,6 @@ double atmosphere2004_dynamic(double const *pos, double h,
     double rho = 1.58868e-8 * std::exp(compute_polynomial(h, a));
     return rho * k0 * (1 + k1 + k2 + k3 + k4);
 }
-
-int day_of_the_year(time_t t);
 
 double atmosphere2004(double const *p, double h, time_t t, double sol_long, double sol_incl,
                       double f10_7, double f81, double kp)

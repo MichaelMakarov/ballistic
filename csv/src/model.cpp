@@ -140,11 +140,11 @@ math::vec6 motion_model::operator()(math::vec6 const &v, time_t t)
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, sun.data());
     mass_acceleration(v.data(), sun.data(), solar_model::mu(), sol_ac);
 
-    // auto s = get_spaceweather(t);
-    // double solar_long = std::atan2(sun[1], sun[0]);
-    // double solar_incl = std::atan(buf[2] / std::sqrt(math::sqr(buf[0]) + math::sqr(buf[1])));
-    // double density = atmosphere2004(v.data(), h, t, solar_long, solar_incl, s.f10_7, s.f81, s.kp);
-    double density = atmosphere1981(h);
+    auto s = get_spaceweather(t);
+    double solar_long = std::atan2(sun[1], sun[0]);
+    double solar_incl = std::atan(buf[2] / std::sqrt(math::sqr(buf[0]) + math::sqr(buf[1])));
+    double density = atmosphere2004(v.data(), h, t, solar_long, solar_incl, s.f10_7, s.f81, s.kp);
+    // double density = atmosphere1981(h);
     atmosphere_deceleration(v.subv<3, 3>(), density, _sball, atm_ac);
     // solar_pressure_acceleration(sun, v3, _scoef, lig_ac);
 
