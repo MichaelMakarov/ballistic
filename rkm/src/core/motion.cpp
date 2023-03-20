@@ -124,7 +124,7 @@ public:
 
     void residual(vec<6> const &v, array_view<2> *const r) const override
     {
-        auto res = compute_basic(subv<0, 5>(v), _tn, _inter);
+        auto res = compute_basic(v, _tn, _inter);
         for (std::size_t i{}; i < res.size(); ++i)
         {
             auto &p = res[i];
@@ -168,7 +168,7 @@ public:
 
     void residual(vec<7> const &v, array_view<2> *const r) const override
     {
-        auto res = compute_extbasic(subv<0, 5>(v), _tn, _inter, v[6], _mass);
+        auto res = compute_extbasic(v.subv<0, 6>(), _tn, _inter, v[6], _mass);
         for (std::size_t i{}; i < res.size(); ++i)
         {
             auto &p = res[i];
@@ -215,7 +215,7 @@ public:
     {
         auto p = _plane;
         p.square = v[6];
-        auto res = compute_extended(subv<0, 5>(v), _tn, _inter, _rot, make_plane(p));
+        auto res = compute_extended(v.subv<0, 6>(), _tn, _inter, _rot, make_plane(p));
         for (std::size_t i{}; i < res.size(); ++i)
         {
             auto &p = res[i];
@@ -252,8 +252,8 @@ void print(forecast const &f)
 
 void estimate_model(measuring_interval const &inter, time_h t, basic_info &info)
 {
-    print(make_forecast(vec6{-4915330.0640170909, 41605236.594821557, -4927565.8685854254, 25.219820391826797, -52.633591322296112, -473.30074525367752}, t, inter.tk()));
-    throw_runtime_error("Stop");
+    // print(make_forecast(vec6{-4915330.0640170909, 41605236.594821557, -4927565.8685854254, 25.219820391826797, -52.633591322296112, -473.30074525367752}, t, inter.tk()));
+    // throw_runtime_error("Stop");
     basic_model_wrapper mwb(inter, t);
     levmarq(info.v, mwb, &info.l, 1e-3, iterations);
 }

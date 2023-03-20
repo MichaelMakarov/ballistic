@@ -1,5 +1,6 @@
 #include <ball.hpp>
 #include <maths.hpp>
+#include <formatting.hpp>
 #include <cmath>
 
 using namespace math;
@@ -65,8 +66,16 @@ void calc_polynomials(double cos, double sin, double *pnm, size_t count)
 	}
 }
 
+geopotential::geopotential() : geopotential(egm::count)
+{
+}
+
 geopotential::geopotential(size_t count)
 {
+	if (egm::harmonics.empty())
+	{
+		throw_runtime_error("Гармоники геопотенциала не загружены.");
+	}
 	count = std::min(count, egm::count);
 	size_t dim = ((count + 1) * (count + 2)) / 2;
 	_cs.resize(count + 1);
@@ -342,7 +351,7 @@ void geopotential::acceleration(double const in[3], double outv[3], double outm[
 			// dLnm(l)/dl = m * (Snm * cos(ml) - Cnm * sin(ml))
 			double dLnm = m * (snm * cosml - cnm * sinml);
 			// ddLnm(l)/ddl = -m * m * Lnm(l)
-			double ddLnm = -m * m * Lnm;
+			double ddLnm = m * m * -Lnm;
 			// Fnm(f) = Pnm(sin(f))
 			double Fnm = _pnm[k];
 			// dFnm(f) = dPnm(sin(f))/df

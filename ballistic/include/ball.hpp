@@ -88,7 +88,7 @@ private:
 	void move(geopotential &other) noexcept;
 
 public:
-	geopotential() = default;
+	geopotential();
 	explicit geopotential(size_t count);
 	geopotential(const geopotential &other) = default;
 	geopotential(geopotential &&other) noexcept;
@@ -111,7 +111,7 @@ public:
 	void acceleration(const double in[3], double out[3]);
 	/**
 	 * @brief Вычисление вектора из производных потенциала и матрицы вторых производных по координатам.
-	 * 
+	 *
 	 * @param in вектор в ГСК (x, y, z) [м]
 	 * @param outv вектор производных потенциала (du/dx, du/dy, du/dz)
 	 * @param outm матрица вторых производных ((ddu/ddx, ddu/dxdy, ddu/dxdz), (ddu/dydx, ddu/ddy, ddudydz), (ddu/dzdx, ddu/dzdy, ddu/ddz))
@@ -132,7 +132,7 @@ struct solar_model
 	 * @param ort вектор в АСК (x, y, z) в м
 	 * @param sph вектор в АСК (радиус [м], склонение [рад], прямое восхождение [рад])
 	 */
-	static void coordinates(time_h t, double *ort = nullptr, double *sph = nullptr);
+	static void coordinates(time_type t, double *ort = nullptr, double *sph = nullptr);
 	/**
 	 * @brief Гравитационная постоянная
 	 */
@@ -165,9 +165,9 @@ struct lunar_model
 	 * @brief Вычисление координат
 	 *
 	 * @param t время
-	 * @param out вектор (радиус [м], склонение [рад], прямое восхождение [рад])
+	 * @param out вектор в АСК (x, y, z)
 	 */
-	static void coordinates(time_h t, double *const out);
+	static void coordinates(time_type t, double *const out);
 	/**
 	 * @brief Гравитационная постоянная
 	 */
@@ -190,7 +190,7 @@ void mass_acceleration(const double *p, const double *m, double mu, double *a);
  * @param t время
  * @return звёздное время в рад
  */
-double sidereal_time(time_h t);
+double sidereal_time(time_type t);
 
 /**
  * @brief Вычисление высоты над земным эллипсоидом

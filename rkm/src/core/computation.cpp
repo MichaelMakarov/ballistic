@@ -34,7 +34,7 @@ measuring_interval::measuring_interval(observ_iter begin, observ_iter end) : _be
 
 quaternion rotator::operator()(time_h t) const
 {
-    return quaternion(axis, vel * (t - tn));
+    return quaternion(axis, vel * to_sec(t - tn));
 }
 
 void computational_output::move(computational_output &other) noexcept

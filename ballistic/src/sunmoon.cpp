@@ -5,9 +5,9 @@
 
 using namespace math;
 
-double time_to_jd(time_h t);
+double time_to_jd(time_type t);
 double jc2000(double jd);
-double jc2000(time_h t)
+double jc2000(time_type t)
 {
     return jc2000(time_to_jd(t));
 }
@@ -24,7 +24,7 @@ void sum_of(double c1, double s1, double c2, double s2, double &c, double &s)
     s = s1 * c2 + c1 * s2;
 }
 
-void solar_model::coordinates(time_h t, double *ort, double *sph)
+void solar_model::coordinates(time_type t, double *ort, double *sph)
 {
     const double T = jc2000(t);
     // solar average longitude
@@ -66,7 +66,7 @@ void solar_model::coordinates(time_h t, double *ort, double *sph)
         transform<abs_cs, sph_cs, abs_cs, ort_cs>::forward(pos, ort);
 }
 
-void lunar_model::coordinates(time_h t, double *const out)
+void lunar_model::coordinates(time_type t, double *const out)
 {
     const double T = jc2000(t);
     // radius of Earth's equator
@@ -147,7 +147,7 @@ void lunar_model::coordinates(time_h t, double *const out)
     transform<abs_cs, ort_cs, ecl_cs, sph_cs>::backward(pos, ecl, out);
 }
 
-void mini_moon(time_h t, double out[3])
+void mini_moon(time_type t, double out[3])
 {
     auto T = jc2000(t);
     // средняя долгота
@@ -190,7 +190,7 @@ double sine(double x)
     return std::sin(fit_round(x));
 }
 
-void moon_pos(time_h t, double out[3])
+void moon_pos(time_type t, double out[3])
 {
     auto T = jc2000(t);
     // долгопериодические возмущения

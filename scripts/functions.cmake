@@ -20,3 +20,13 @@ function(add_external_project projname srcdir)
 		INSTALL_COMMAND ""
 	)
 endfunction()
+
+function(copydllfiles target_name)
+    add_custom_command(
+        TARGET ${target_name}
+        POST_BUILD 
+        COMMAND ${CMAKE_COMMAND} 
+        -DBINARY_DIR=${CMAKE_BINARY_DIR}
+        -P ${CMAKE_SOURCE_DIR}/scripts/copydll.cmake 
+    )
+endfunction()

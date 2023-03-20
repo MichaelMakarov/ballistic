@@ -1,64 +1,97 @@
 #include <times.hpp>
+#include <formatting.hpp>
 #include <ostream>
 #include <iomanip>
-#include <chrono>
 #include <vector>
 #include <string>
 #include <unordered_map>
+#include <mutex>
 
-constexpr int microseconds{1'000'000};
+std::mutex times_sync_obj;
 
-time_h make_time(const calendar &c)
+time_type make_time(int year, int month, int day, int hour, int minute, int second, int millisec)
 {
-#define throw_if(cond, msg)                   \
-	{                                         \
-		if (cond)                             \
-			throw std::invalid_argument(msg); \
+#define throw_if(cond, msg)              \
+	{                                    \
+		if (cond)                        \
+			throw_invalid_argument(msg); \
 	}
 
 	constexpr int ord_days[12]{31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 	constexpr int leap_days[12]{31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
 
-	auto [year, month, day, hour, min, sec, millisec] = c;
 	bool leap_year = year % 400 == 0 || (!(year % 100 == 0) && year % 4 == 0);
 
-	throw_if(month < 1 || month > 12, "месяц имеет некорректное значение");
+	throw_if(month < 1 || month > 12, "Invalid month.");
 	auto maxday = leap_year ? leap_days[month - 1] : ord_days[month - 1];
-	throw_if(day < 0 || day > maxday, "день имеет некорректное значение");
-	throw_if(hour < 0 || hour > 23, "час имеет некорректное значение");
-	throw_if(min < 0 || min > 59, "минута имеет некорректное значение");
-	throw_if(min < 0 || sec > 59, "секунда имеет некорректное значение");
-	throw_if(millisec < 0 || millisec > 999, "миллисекунда имеет некорректное значение");
+	throw_if(day < 0 || day > maxday, "Invalid day.");
+	throw_if(hour < 0 || hour > 23, "Invalid hour.");
+	throw_if(minute < 0 || minute > 59, "Invalid minute.");
+	throw_if(second < 0 || second > 59, "Invalid second.");
+	throw_if(millisec < 0 || millisec > 999, "Invalid millisecond.");
 
 	tm dt{};
 	dt.tm_year = year - 1900;
 	dt.tm_mon = month - 1;
 	dt.tm_mday = day;
 	dt.tm_hour = hour;
-	dt.tm_min = min;
-	dt.tm_sec = sec;
+	dt.tm_min = minute;
+	dt.tm_sec = second;
 
-	auto t = mktime(&dt);
-	throw_if(t == -1, "не удалось представить календарную дату в системном виде");
-
-	return time_h{t * microseconds + millisec * 1000};
+	time_t t{};
+	{
+		std::lock_guard<std::mutex> lg{times_sync_obj};
+		t = mktime(&dt);
+	}
+	throw_if(t == -1, format("Failed to create corresponding system time to %-%-%_%:%:%.", year, month, day, hour, minute, second));
+	return t * milliseconds + millisec;
 }
 
-time_h current_time()
+time_type make_time(const calendar &c)
 {
-	return {std::chrono::system_clock::to_time_t(std::chrono::system_clock::now()) * microseconds};
+	return make_time(c.year, c.month, c.day, c.hour, c.minute, c.second, c.millisecond);
 }
 
-const std::unordered_map<char, int> id_map{
-	{'Y', 1}, {'m', 2}, {'d', 3}, {'H', 4}, {'M', 5}, {'S', 6}, {'f', 7}, {'.', 8}, {' ', 8}, {'-', 8}, {'/', 8}, {':', 8}};
+time_type current_time()
+{
+	time_t t{};
+	{
+		std::lock_guard<std::mutex> lg{times_sync_obj};
+		t = std::time(nullptr);
+	}
+	return t * milliseconds;
+}
 
-time_h make_time(std::string_view str, std::string_view fmt)
+class format_character
+{
+	static std::unordered_map<char, std::size_t> const map;
+
+public:
+	static constexpr std::size_t ms_id{6};
+	static constexpr std::size_t default_id{7};
+	static std::size_t get_id(char c)
+	{
+		return map.contains(c) ? map.at(c) : default_id;
+	}
+};
+
+std::unordered_map<char, std::size_t> const format_character::map{
+	{'y', 0},
+	{'M', 1},
+	{'d', 2},
+	{'h', 3},
+	{'m', 4},
+	{'s', 5},
+	{'f', 6},
+};
+
+time_type make_time(char const *str, char const *fmt)
 {
 	// parsing input string
 	size_t index{};
 	std::vector<std::string> values(1);
 	values.reserve(7);
-	for (char symbol : str)
+	while (char symbol = *str++)
 	{
 		if (std::isdigit(symbol))
 		{
@@ -72,18 +105,20 @@ time_h make_time(std::string_view str, std::string_view fmt)
 	}
 	if (values.size() < 3 || values.size() > 7)
 	{
-		throw std::invalid_argument("Incorrect time format string.");
+		throw_invalid_argument("Incorrect time format string.");
 	}
 	// parsing format string
 	int sequence[7]{0, 1, 1, 0, 0, 0, 0};
 	std::string buf;
 	int len{1};
 	index = 0;
-	for (char sym : fmt)
+	while (char symbol = *fmt++)
 	{
-		auto id = id_map.at(sym); // get_id(sym);
-		if (id == 8)
-			buf.push_back(sym);
+		auto id = format_character::get_id(symbol);
+		if (id == format_character::default_id)
+		{
+			buf.push_back(symbol);
+		}
 		else
 		{
 			if (!buf.empty())
@@ -95,96 +130,67 @@ time_h make_time(std::string_view str, std::string_view fmt)
 			{
 				break;
 			}
-			sequence[id - 1] = std::stoi(values[index]);
-			if (id == 7)
+			sequence[id] = std::stoi(values[index]);
+			if (id == format_character::ms_id)
+			{
 				len = static_cast<int>(values[index].size());
+			}
 		}
 	}
-	calendar c{};
-	c.year = sequence[0];
-	c.month = sequence[1];
-	c.day = sequence[2];
-	c.hour = sequence[3];
-	c.minute = sequence[4];
-	c.second = sequence[5];
-	c.millisecond = sequence[6];
-	return make_time(c);
+	return make_time(sequence[0], sequence[1], sequence[2], sequence[3], sequence[4], sequence[5], sequence[6]);
 }
 
-time_h &time_h::operator+=(seconds_t s)
+calendar::calendar() noexcept
+	: year{1900},
+	  month{1},
+	  day{1},
+	  hour{0},
+	  minute{},
+	  second{},
+	  millisecond{},
+	  yday{-1}
 {
-	mcs += static_cast<long long>(s * microseconds);
-	return *this;
 }
 
-time_h &time_h::operator-=(seconds_t s)
+calendar::calendar(int y, int m, int d, int h, int min, int s, int ms) noexcept
+	: year{y},
+	  month{m},
+	  day{d},
+	  hour{h},
+	  minute{min},
+	  second{s},
+	  millisecond{ms},
+	  yday{-1}
 {
-	return (*this) += (-s);
 }
 
-time_h operator+(time_h left, seconds_t s)
+calendar::calendar(time_type t)
 {
-	return left += s;
-}
-time_h operator-(time_h left, seconds_t s)
-{
-	return left += (-s);
-}
-seconds_t operator-(time_h left, time_h right)
-{
-	constexpr double mult{1.0 / microseconds};
-	return (left.mcs - right.mcs) * mult;
-}
-bool operator<(time_h left, time_h right)
-{
-	return left.mcs < right.mcs;
-}
-bool operator>(time_h left, time_h right)
-{
-	return left.mcs > right.mcs;
-}
-bool operator==(time_h left, time_h right)
-{
-	return left.mcs == right.mcs;
-}
-bool operator<=(time_h left, time_h right)
-{
-	return left.mcs <= right.mcs;
-}
-bool operator>=(time_h left, time_h right)
-{
-	return left.mcs >= right.mcs;
-}
-bool operator!=(time_h left, time_h right)
-{
-	return left.mcs != right.mcs;
-}
-
-calendar time_to_calendar(time_h t)
-{
-	time_t tt{t.mcs / microseconds};
-	auto ptr = localtime(&tt);
-	auto ms = static_cast<int>(std::round((t.mcs % microseconds) * 1e-3));
-	calendar c{};
-	c.year = ptr->tm_year + 1900;
-	c.month = ptr->tm_mon + 1;
-	c.day = ptr->tm_mday;
-	c.hour = ptr->tm_hour;
-	c.minute = ptr->tm_min;
-	c.second = ptr->tm_sec + ms / 1000;
-	c.millisecond = ms % 1000;
-	return c;
+	tm m;
+	{
+		time_t p = t / milliseconds;
+		std::lock_guard<std::mutex> lg{times_sync_obj};
+		auto ptr = localtime(&p);
+		if (!ptr)
+		{
+			throw_invalid_argument("invalid time input.");
+		}
+		m = *ptr;
+	}
+	year = m.tm_year + 1900;
+	month = m.tm_mon + 1;
+	day = m.tm_mday;
+	hour = m.tm_hour;
+	minute = m.tm_min;
+	second = m.tm_sec;
+	millisecond = t % milliseconds;
+	yday = m.tm_yday;
 }
 
 std::ostream &operator<<(std::ostream &os, calendar const &c)
 {
 	os << std::setfill('0');
-	os << std::setw(4) << c.year << '.' << std::setw(2) << c.month << '.' << std::setw(2) << c.day << ' ';
+	os << std::setw(4) << c.year << '.' << std::setw(2) << c.month << '.' << std::setw(2) << c.day << '_';
 	os << std::setw(2) << c.hour << ':' << std::setw(2) << c.minute << ':' << std::setw(2) << c.second << '.' << std::setw(3) << c.millisecond;
 	return os;
-}
-
-std::ostream &operator<<(std::ostream &os, time_h t)
-{
-	return os << time_to_calendar(t);
 }

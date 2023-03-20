@@ -7,3 +7,6 @@
 [submodule "external/QueueManager"]
 	path = external/QueueManager
 	url = http://192.168.2.237/common/cpp/QueueManager.git
+[submodule "external/curl"]
+	path = external/curl
+	url = https://github.com/curl/curl.git

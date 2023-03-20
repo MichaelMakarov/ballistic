@@ -112,7 +112,7 @@ template <size_t _size>
 struct basic_logger : public optimization_logger<_size>, public std::list<optimization_iteration<_size>>
 {
     using std::list<optimization_iteration<_size>>::list;
-    void add(optimization_iteration<_size> const &iter) override
+    void add(optimization_iteration<_size> &&iter) override
     {
         this->push_back(iter);
     }

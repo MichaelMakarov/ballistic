@@ -12,18 +12,8 @@ inline constexpr auto jd2000{2451545};
  *
  */
 inline constexpr auto jd1970{2440587.5};
-/**
- * @brief Кол-во микросекунд в секунде
- *
- */
-inline constexpr time_t microseconds{1'000'000};
-/**
- * @brief Кол-во микросекунд в сутках
- *
- */
-inline constexpr time_t mcs_per_day{86400 * microseconds};
 
-time_h compute_difference()
+time_type compute_difference()
 {
 	auto loc = std::time(nullptr);
 	auto ptr = gmtime(&loc);
@@ -31,28 +21,28 @@ time_h compute_difference()
 	gnw -= loc;
 	if (ptr->tm_isdst)
 		gnw -= 3600;
-	return {gnw * microseconds};
+	return gnw * milliseconds;
 }
 
-time_t difference()
+time_type difference()
 {
-	static time_h diff = compute_difference();
-	return diff.mcs;
+	static time_type diff = compute_difference();
+	return diff;
 }
 /**
  * @brief Вычисление юлианской даты
  */
-double time_to_jd(time_h t)
+double time_to_jd(time_type t)
 {
-	constexpr double mult{1. / mcs_per_day};
-	return (t.mcs - difference()) * mult + jd1970;
+	constexpr double mult{1. / ms_per_day};
+	return (t - difference()) * mult + jd1970;
 }
 /**
  * @brief Приведение юлианской даты ко времени
  */
-time_h jd_to_time(double jd)
+time_type jd_to_time(double jd)
 {
-	return {static_cast<long long>(jd - jd1970) * mcs_per_day + difference()};
+	return {static_cast<long long>(jd - jd1970) * ms_per_day + difference()};
 }
 /**
  * @brief Вычисление кол-ва юлианских столетий по юлианской дате от эпохи J2000.
@@ -139,7 +129,7 @@ double sidereal_time_true(double jc, double jt)
 	return sidereal_time_mean(jc, jt) + nutation(jc);
 }
 
-double sidereal_time(time_h t)
+double sidereal_time(time_type t)
 {
 	// юлианская дата
 	double jd{};

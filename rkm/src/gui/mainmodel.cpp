@@ -8,8 +8,6 @@
 #include <ball.hpp>
 #include <fstream>
 
-constexpr double sec_per_day{86400};
-
 std::ofstream open_outfile(const std::string_view);
 
 /**
@@ -138,7 +136,7 @@ public:
      * @param tle_index индекс опорного ТЛЕ
      * @param interval длина мерного интервала в сек
      */
-    void compute(computational_output &output, size_t tle_index, double interval)
+    void compute(computational_output &output, size_t tle_index, int64_t interval)
     {
         verify();
         // начальные условия из ТЛЕ
@@ -164,8 +162,6 @@ public:
         output.inter = std::make_shared<measuring_interval>(inter);
         auto func = [&output, tn](std::size_t i)
         {
-            if (i != 0)
-                return;
             if (i == 0)
             {
                 // решение по базовой модели
@@ -299,7 +295,7 @@ void computational_model::compute(const std::string &filename) const
         auto binding = _context->bind(_interval, _index, filename);
         try
         {
-            _computer->compute(binding.output(), _index, _interval * sec_per_day);
+            _computer->compute(binding.output(), _index, static_cast<time_h>(_interval * ms_per_day));
         }
         catch (const std::exception &)
         {
@@ -313,5 +309,7 @@ void computational_model::compute(const std::string &filename) const
         exptr = std::current_exception();
     }
     if (exptr)
+    {
         std::rethrow_exception(exptr);
+    }
 }

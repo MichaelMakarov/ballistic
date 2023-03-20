@@ -19,7 +19,14 @@ namespace math
 	template <std::size_t _dim>
 	using array_view = double[_dim];
 
-	double residual_function(vector const &v);
+	template <std::size_t _size>
+	struct residual_function
+	{
+		static double residual(vector const &v)
+		{
+			return v * v;
+		}
+	};
 
 	/**
 	 * @brief Итерация оптимизации
@@ -80,7 +87,7 @@ namespace math
 	class optimization_logger
 	{
 	public:
-		virtual void add(optimization_iteration<_size> const &) = 0;
+		virtual void add(optimization_iteration<_size> &&) = 0;
 	};
 
 	/**
@@ -89,7 +96,7 @@ namespace math
 	 * @tparam _size кол-во оптимизируемых параметров
 	 * @tparam _dim размер вектора невязок, соответствующего одному измерению
 	 */
-	template <size_t _size, size_t _dim>
+	template <std::size_t _size, std::size_t _dim>
 	class optimization_interface
 	{
 	public:
@@ -105,7 +112,7 @@ namespace math
 		 * @param v вектор параметров
 		 * @param r массив невязок
 		 */
-		virtual void residual(vec<_size> const &v, array_view<_dim> *const r) const = 0;
+		virtual void residual(vec<_size> const &v, array_view<_dim> *r) const = 0;
 		/**
 		 * @brief Возвращает вектор из вариаций параметров.
 		 *
@@ -119,7 +126,7 @@ namespace math
 		 * @param index индекс параметра
 		 * @param add значение поправки
 		 */
-		virtual void update(double &value, size_t index, double add) const = 0;
+		virtual void update(double &value, std::size_t index, double add) const = 0;
 	};
 
 	template <size_t _size, size_t _dim>
@@ -212,7 +219,7 @@ namespace math
 				v[j] += p.dv[j];
 			vector rv(_interface.points_count() * _dim);
 			_interface.residual(v, reinterpret_cast<array_view<_dim> *>(rv.data()));
-			p.r = residual_function(rv);
+			p.r = residual_function<_size>::residual(rv);
 		}
 	};
 
@@ -268,7 +275,7 @@ namespace math
 		for (size_t iteration{1}; iteration <= maxiter; ++iteration)
 		{
 			eqm(v, dm, rv); // вычисление матрицы частных производных и вектора невязок
-			double res = p.r = residual_function(rv);
+			double res = p.r = residual_function<_size>::residual(rv);
 			// оптимизация множителя
 			optimize_multiplier(optimization_helper<_size, _dim>(interface, v, dm, rv), p, eps, maxiter);
 			bool equal = is_equal(res, p.r, eps);
@@ -279,12 +286,9 @@ namespace math
 				iter.v = v;
 				iter.r = res;
 				iter.dv = p.dv;
-				if (!equal)
-				{
-					iter.rv = rv;
-					iter.dm = dm;
-				}
-				logger->add(iter);
+				iter.rv = rv;
+				iter.dm = dm;
+				logger->add(std::move(iter));
 			}
 			if (equal)
 				return;
@@ -293,50 +297,4 @@ namespace math
 		}
 	}
 
-	template <size_t _size, size_t _dim>
-	class optimization_interface1
-	{
-	public:
-		/**
-		 * @brief Кол-во измерений.
-		 *
-		 * @return std::size_t
-		 */
-		virtual std::size_t points_count() const = 0;
-		/**
-		 * @brief Вычисление невязок.
-		 *
-		 * @param v вектор параметров
-		 * @param r массив невязок
-		 */
-		virtual void residual(vec<_size> const &v, array_view<_dim> *rv, array_view<_dim> *(&dm)[_size]) const = 0;
-		/**
-		 * @brief Уточняет поправку для параметра с указанным индексом.
-		 *
-		 * @param value значение
-		 * @param index индекс параметра
-		 * @param add значение поправки
-		 */
-		virtual void update(double &value, size_t index, double add) const = 0;
-	};
-
-	template <size_t _size, size_t _dim>
-	class equation_maker1
-	{
-		optimization_interface1<_size, _dim> const &_interface;
-
-	public:
-		equation_maker1(optimization_interface1<_size, _dim> const &interface) : _interface{interface}
-		{
-		}
-		void operator()(vec<_size> const &v, matrix &dm, vector &rv) const
-		{
-			// указатели на начало массивов, куда будут записываться невязки (строки матрицы из частных производных и вектор невязок)
-			array_view<_dim> *mptr[_size];
-			for (std::size_t i{}; i < _size; ++i)
-				mptr[i] = reinterpret_cast<array_view<_dim> *>(dm[i]);
-			array_view<_dim> *vptr = reinterpret_cast<array_view<_dim> *>(rv.data());
-			_interface.residual(v, vptr, mptr);
-		}
-	};
 }

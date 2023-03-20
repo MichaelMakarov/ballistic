@@ -10,9 +10,4 @@ namespace math
 		return std::abs(1 - newval / oldval) < eps;
 	}
 
-	double residual_function(vector const &v)
-	{
-		return v * v;
-	}
-
 }

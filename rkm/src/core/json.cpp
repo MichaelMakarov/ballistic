@@ -236,7 +236,7 @@ auto load_brightness_data(const std::string_view obs_filename, const std::string
 
 	for (const auto &s : observation.seances)
 	{
-		auto tn = make_time(s.date + ' ' + s.time, "Y-m-d H:M:S");
+		auto tn = make_time((s.date + ' ' + s.time).c_str(), "Y-m-d H:M:S");
 		auto observ = std::find_if(
 			std::begin(observatories), std::end(observatories),
 			[&s](const observatory &obs)
@@ -257,7 +257,7 @@ auto load_brightness_data(const std::string_view obs_filename, const std::string
 			if (m[3] == 0 || m[2] == 0 || m[1] == 0)
 				continue;
 			measurement_data b{};
-			b.t = tn + m[0];
+			b.t = tn + make_msec(static_cast<time_h>(m[0] * 1000));
 			b.a = m[1] * (math::pi / 12);
 			b.i = math::deg_to_rad(m[2]);
 			b.m = m[3];

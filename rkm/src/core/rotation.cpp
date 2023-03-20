@@ -195,7 +195,7 @@ double estimate_angular_velocity(const measuring_interval &inter, const std::vec
     auto tn = std::begin(inter).measurement().t;
     for (auto iter = std::begin(inter); ++iter != std::end(inter);)
     {
-        times.push_back(iter.measurement().t - tn);
+        times.push_back(to_sec(iter.measurement().t - tn));
     }
     auto freq = estimate_frequency(times, ratios);
     return freq;

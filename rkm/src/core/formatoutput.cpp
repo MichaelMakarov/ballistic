@@ -237,14 +237,14 @@ void print_ext(std::ostream &os, const extended_info &m, bool full)
 void print_tle(std::ostream &os, const orbit_data &d, bool full)
 {
     auto sep = separator(full);
-    os << "T = " << d.t;
+    os << "T = " << calendar{d.t};
     os << "\nПараметры движения" << sep;
     print_vec<6>(os, d.v, sep);
 }
 
 void print_interval(std::ostream &os, measuring_interval const &inter, bool full)
 {
-    os << inter.tn() << " - " << inter.tk() << " кол-во измерений " << inter.points_count() << std::endl;
+    os << calendar{inter.tn()} << " - " << calendar{inter.tk()} << " кол-во измерений " << inter.points_count() << std::endl;
     if (!full)
         return;
     auto [begin, end] = seance_iterators(inter);
@@ -255,7 +255,7 @@ void print_interval(std::ostream &os, measuring_interval const &inter, bool full
         os << " кол-во измерений " << begin->m.size() << std::endl;
         for (auto &meas : begin->m)
         {
-            os << "Измерение № " << ++j << " T =  " << meas.t << ' ';
+            os << "Измерение № " << ++j << " T =  " << calendar{meas.t} << ' ';
             os << lambda << equal << rad_to_deg(meas.i) << degree << ' ';
             os << phi << equal << rad_to_deg(meas.a) << degree << ' ';
             os << "зв.вел." << equal << meas.m << '\n';
@@ -268,7 +268,7 @@ void print_rot(std::ostream &os, rotation_info const &r, bool full)
     auto sep = separator(full);
     double buf[3]{};
     ::transform<abs_cs, sph_cs, abs_cs, ort_cs>::backward(r.r.axis.data(), buf);
-    os << "Тн =  " << r.r.tn;
+    os << "Тн =  " << calendar{r.r.tn};
     os << sep << "ось вращения " << sep;
     os << lambda << equal << rad_to_deg(buf[1]) << degree << sep;
     os << phi << equal << rad_to_deg(buf[2]) << degree << sep;

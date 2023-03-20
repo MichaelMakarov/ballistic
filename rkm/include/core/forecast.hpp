@@ -9,7 +9,7 @@ using namespace math;
  * @brief Прогноз движения
  *
  */
-using forecast = integrator<vec6, time_h, double>;
+using forecast = integrator<vec6, time_h, time_h>;
 
 class rotator;
 class object_model;

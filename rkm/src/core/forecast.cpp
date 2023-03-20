@@ -16,8 +16,14 @@ auto make_forecast(const vec6 &v, time_h tn, time_h tk, const Args &...args)
 {
     constexpr size_t harmonics{16};
     M model{harmonics, args...};
-    return forecast(v, tn, tk, model, 30);
+    return forecast(v, tn, tk, model, make_sec(30));
 }
+
+template <>
+struct timestep_converter<time_h>
+{
+    static double convert(time_h t) { return to_sec(t); }
+};
 
 forecast make_forecast(const vec6 &v, time_h tn, time_h tk)
 {

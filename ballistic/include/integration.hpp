@@ -4,6 +4,22 @@
 
 namespace math
 {
+	/**
+	 * @brief Конвертер шага времени к double.
+	 *
+	 * @tparam D тип шага по времени
+	 */
+	template <typename D>
+	struct timestep_converter
+	{
+		/**
+		 * @brief Преобразование к double.
+		 *
+		 * @param t значение шага времени
+		 * @return double
+		 */
+		static double convert(D const &t) { return static_cast<double>(t); }
+	};
 
 	inline auto min_of(std::size_t left, std::size_t right)
 	{
@@ -80,8 +96,6 @@ namespace math
 					_points[i] = tmp;
 				}
 			}
-			if (index == degree)
-				arr[degree - 1] = func(_points[7].v, _points[7].t);
 			// основной цикл
 			for (std::size_t i{index}; i < count; ++i)
 			{
@@ -103,16 +117,20 @@ namespace math
 			T tn = _points.front().t;
 			T tk = _points.back().t;
 			if (count < degree)
+			{
 				throw_length_error("Степень аппроксимации превосходит кол-во доступных точек.");
+			}
 			// индекс первой точки для аппроксимации
 			auto index = static_cast<std::size_t>((t - tn) / _step);
 			if (index > count)
+			{
 				throw_invalid_argument("Момент времени % находится за пределами интервала интегрирования % - %.", t, tn, tk);
+			}
 			index -= min_of(index, degree / 2);
 			index = min_of(index, count - degree);
 			// P(t) = sum{n = 0..dim} (mult{k = 0..dim, k != n} (t - t_k)/(t_n - t_k)) x_n
 			V r;
-			D mult;
+			double mult;
 			for (size_t n{}; n < degree; ++n)
 			{
 				mult = 1;
@@ -120,24 +138,24 @@ namespace math
 				{
 					if (k != n)
 					{
-						D up = t - _points[index + k].t;
-						D down = _points[index + n].t - _points[index + k].t;
-						mult *= static_cast<double>(up) / static_cast<double>(down);
+						double up = timestep_converter<D>::convert(t - _points[index + k].t);
+						double down = timestep_converter<D>::convert(_points[index + n].t - _points[index + k].t);
+						mult *= up / down;
 					}
 				}
-				r += mult * _points[index + n].v;
+				r += _points[index + n].v * mult;
 			}
 			return r;
 		}
 
 	private:
 		template <typename F>
-		pair rk4(pair const &in, D const &step, F &func)
+		pair rk4(pair const &in, D const &delta, F &func)
 		{
 			pair out{};
-			D step_2 = step / 2, step_6 = step / 6;
-			T t = in.t + step_2;
-			out.t = in.t + step;
+			double step = timestep_converter<D>::convert(delta), step_2 = 0.5 * step, step_6 = step_2 / 3;
+			T t = in.t + delta / 2;
+			out.t = in.t + delta;
 			V k1 = func(in.v, in.t);
 			V k2 = func(in.v + k1 * step_2, t);
 			V k3 = func(in.v + k2 * step_2, t);
@@ -158,6 +176,8 @@ namespace math
 			arr[7] = func(in.v, in.t);
 			// значение по корректору
 			pair out{};
+			// шаг интегрирования
+			double delta = timestep_converter<D>::convert(step);
 			// значение по предиктору
 			V x = arr[0] * b[0];
 			for (std::size_t i{1}; i < 8; ++i)
@@ -169,11 +189,11 @@ namespace math
 				// renew
 				arr[i - 1] = arr[i];
 			}
-			x *= step;
+			x *= delta;
 			x += in.v;
 			out.t = in.t + step;
 			out.v += func(x, out.t) * c[7];
-			out.v *= step;
+			out.v *= delta;
 			out.v += in.v;
 			return out;
 		}

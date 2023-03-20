@@ -95,7 +95,7 @@ vec6 extbasic_model::operator()(vec6 const &v, time_h const &t)
     double buf[3]{};
     solar_model::coordinates(t, buf);
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, sidereal_time(t), sun.data());
-    auto ac = solar_pressure(sun, subv<0, 2>(v), _coef);
+    auto ac = solar_pressure(sun, v.subv<0, 3>(), _coef);
     for (size_t i{}; i < ac.size(); ++i)
         dv[i + 3] += ac[i];
     return dv;
