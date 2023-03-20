@@ -14,7 +14,7 @@ int main(int argc, char **argv)
         compute_motion(conf.get_motion_measurements(), conf.get_computationlog_filepath(), provider);
         std::cout << "Computations finished. " << timer << std::endl;
     }
-    catch (const std::runtime_error &e)
+    catch (const std::exception &e)
     {
         std::cerr << e.what() << std::endl;
         return 1;

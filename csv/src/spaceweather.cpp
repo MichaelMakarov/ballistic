@@ -2,6 +2,7 @@
 #include <fileutility.hpp>
 #include <formatting.hpp>
 #include <csvutility.hpp>
+#include <timeutility.hpp>
 #include <vector>
 
 struct spaceweather_node
@@ -24,8 +25,8 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     end = field_end(str, begin);
     try
     {
-        auto substr = str.substr(begin, end - begin);
-        node.t = make_time(substr.c_str(), "y-m-d");
+        time_point_t t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin));
+        node.t = clock_type::to_time_t(t);
     }
     catch (const std::exception &ex)
     {
@@ -77,13 +78,13 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     return node;
 }
 
-constexpr auto day = make_days(1);
-constexpr auto hour3 = make_hour(3);
+constexpr auto day = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::days{1}).count();
+constexpr auto hour3 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::hours{3}).count();
 
 class spaceweather_handler
 {
     std::vector<spaceweather_node> _nodes;
-    time_type _tn, _tk;
+    time_t _tn, _tk;
 
 public:
     spaceweather_handler() : _tn{}, _tk{} {}
@@ -115,12 +116,12 @@ public:
         return *this;
     }
 
-    spaceweather get_spaceweather(time_type t) const
+    spaceweather get_spaceweather(time_t t) const
     {
         if (_tn > t || t > _tk)
         {
             throw_out_of_range("Time % of the request is out of range of space weather time interval % - %.",
-                               calendar{t}, calendar{_tn}, calendar{_tk});
+                               clock_type::from_time_t(t), clock_type::from_time_t(_tn), clock_type::from_time_t(_tk));
         }
         std::size_t index = (t - _tn) / day;
         auto &node = _nodes[index];
@@ -131,7 +132,7 @@ public:
 
 spaceweather_handler handler;
 
-spaceweather get_spaceweather(time_type t)
+spaceweather get_spaceweather(time_t t)
 {
     return handler.get_spaceweather(t);
 }

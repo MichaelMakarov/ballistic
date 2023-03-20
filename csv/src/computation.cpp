@@ -41,8 +41,8 @@ public:
     model_optimizer(std::vector<motion_measurement> const &measurements)
     {
         _begin = std::begin(measurements);
-        _end = std::lower_bound(std::begin(measurements), std::end(measurements), _begin->t + make_days(1),
-                                [](motion_measurement const &m, time_type t)
+        _end = std::lower_bound(std::begin(measurements), std::end(measurements), _begin->t + std::chrono::days(1),
+                                [](motion_measurement const &m, time_point_t t)
                                 { return m.t < t; });
     }
     std::size_t points_count() const override { return std::distance(_begin, _end); }
@@ -62,11 +62,11 @@ public:
     }
     void residual(math::vec<vecsize> const &v, math::array_view<6> *res) const override
     {
-        auto f = make_forecast(v.subv<0, 6>(), _begin->t, (_end - 1)->t, v[6], 0); //[7]);
+        auto f = make_forecast(v.subv<0, 6>(), to_time_t(_begin->t), to_time_t((_end - 1)->t), v[6], 0); //[7]);
         for (auto iter = _begin; iter != _end; ++iter)
         {
             auto &m = *iter;
-            auto p = f.point(m.t);
+            auto p = f.point(to_time_t(m.t));
             auto &r = *res;
             for (std::size_t i{}; i < 6; ++i)
             {
@@ -267,7 +267,10 @@ void compute_motion(std::vector<motion_measurement> const &measurements, std::st
     model_optimizer optimizer{measurements};
     computation_logger logger;
     logger.reserve(iterations);
-    os << "Исходные параметры движения ";
+    os << "T = ";
+    write_to_stream(os, first.t);
+    os << std::endl
+       << "Исходные параметры движения ";
     print_vec<vecsize>(os, v.data());
     os << std::endl;
     std::exception_ptr exptr;

@@ -19,6 +19,7 @@ add_executable(
     src/atmosphere.cpp
     src/spaceweather.cpp
     src/csvutility.cpp
+    src/timeutility.cpp
 )
 target_include_directories(
     csv_kinematic_rotation

@@ -1,5 +1,5 @@
 #pragma once
-#include <times.hpp>
+#include <ctime>
 
 /**
  * @brief Данные космической погоды
@@ -27,7 +27,7 @@ struct spaceweather
 /**
  * @brief Get the spaceweather object
  *
- * @param t время
+ * @param t время прошедшее с начала 1970 года (сек)
  * @return spaceweather
  */
-spaceweather get_spaceweather(time_type t);
+spaceweather get_spaceweather(time_t t);

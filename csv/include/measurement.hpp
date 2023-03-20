@@ -1,5 +1,5 @@
 #pragma once
-#include <times.hpp>
+#include <timeutility.hpp>
 
 /**
  * @brief Измерение движения
@@ -7,7 +7,7 @@
  */
 struct motion_measurement
 {
-    time_type t;
+    time_point_t t;
     double v[6];
 };
 
@@ -17,6 +17,6 @@ struct motion_measurement
  */
 struct rotation_measurement
 {
-    time_type t;
+    time_point_t t;
     double q[4];
 };

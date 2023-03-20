@@ -5,11 +5,12 @@
 
 using namespace math;
 
-double time_to_jd(time_type t);
+double time_to_jd(int64_t t);
 double jc2000(double jd);
-double jc2000(time_type t)
+double jc2000(int64_t t)
 {
-    return jc2000(time_to_jd(t));
+    // домножаем на 1000, чтобы перевести в миллисекунды
+    return jc2000(time_to_jd(t * 1000));
 }
 
 constexpr double spr{1296000};
@@ -24,7 +25,7 @@ void sum_of(double c1, double s1, double c2, double s2, double &c, double &s)
     s = s1 * c2 + c1 * s2;
 }
 
-void solar_model::coordinates(time_type t, double *ort, double *sph)
+void solar_model::coordinates(int64_t t, double *ort, double *sph)
 {
     const double T = jc2000(t);
     // solar average longitude
@@ -66,7 +67,7 @@ void solar_model::coordinates(time_type t, double *ort, double *sph)
         transform<abs_cs, sph_cs, abs_cs, ort_cs>::forward(pos, ort);
 }
 
-void lunar_model::coordinates(time_type t, double *const out)
+void lunar_model::coordinates(int64_t t, double *const out)
 {
     const double T = jc2000(t);
     // radius of Earth's equator
@@ -145,62 +146,4 @@ void lunar_model::coordinates(time_type t, double *const out)
     // average ecliptic inclination
     double ecl = sec_to_rad(84381.448 - (46.815 + (0.00059 - 0.001813 * T) * T) * T);
     transform<abs_cs, ort_cs, ecl_cs, sph_cs>::backward(pos, ecl, out);
-}
-
-void mini_moon(time_type t, double out[3])
-{
-    auto T = jc2000(t);
-    // средняя долгота
-    auto L = fit_round(0.606433 + 1336.855225 * T);
-    // средняя аномалия Луны
-    auto l = fit_round(0.374897 + 1325.552410 * T);
-    // средняя аномалия Солнца
-    auto ls = fit_round(0.993133 + 99.997361 * T);
-    // разница долгот Луна-Солнце
-    auto D = fit_round(0.827361 + 1236.853086 * T);
-    // расстояние от восходящего узла
-    auto F = fit_round(0.259086 + 1342.227825 * T);
-    // возмущения в долготе и широте
-    auto dL = 22640 * std::sin(l) - 4586 * std::sin(l - 2 * D) +
-              2370 * std::sin(2 * D) + 769 * std::sin(2 * l) -
-              668 * std::sin(ls) - 412 * std::sin(2 * F) -
-              212 * std::sin(2 * (l - D)) - 206 * std::sin(l + ls - 2 * D) +
-              192 * std::sin(l + 2 * D) - 165 * std::sin(ls - 2 * D) -
-              125 * std::sin(D) - 110 * std::sin(l + ls) +
-              148 * std::sin(l - ls) - 55 * std::sin(2 * (F - D));
-    auto S = F + (dL + 412 * std::sin(2 * F) + 541 * std::sin(ls));
-    S = sec_to_rad(S);
-    auto h = F - 2 * D;
-    auto N = -526 * std::sin(h) + 44 * std::sin(l + h) -
-             31 * std::sin(h - l) - 23 * std::sin(ls + h) +
-             11 * std::sin(h - ls) - 25 * std::sin(F - 2 * l) + 21 * std::sin(F - l);
-    constexpr auto eps = deg_to_rad(23.43929111);
-    // радиус-вектор, экл. широта и долгота
-    double buf[3]{1, 0, 0};
-    // эклиптическая долгота
-    buf[2] = fit_round(L + dL / 1296e3);
-    // эклиптическая широта
-    buf[1] = sec_to_rad(18520 * std::sin(S) + N);
-    // преобразование из эклиптики в АСК
-    transform<abs_cs, ort_cs, ecl_cs, sph_cs>::backward(buf, eps, out);
-}
-
-double sine(double x)
-{
-    return std::sin(fit_round(x));
-}
-
-void moon_pos(time_type t, double out[3])
-{
-    auto T = jc2000(t);
-    // долгопериодические возмущения
-    auto s1 = sine(0.19833 + 0.05611 * T);
-    auto s2 = sine(0.27869 + 0.04508 * T);
-    auto s3 = sine(0.16827 - 0.36903 * T);
-    auto s4 = sine(0.34734 - 5.37261 * T);
-    auto s5 = sine(0.10498 - 5.37899 * T);
-    auto s6 = sine(0.42681 - 0.41855 * T);
-    auto s7 = sine(0.14943 - 5.37511 * T);
-
-    out[0] = 0;
 }

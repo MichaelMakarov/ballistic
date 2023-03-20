@@ -110,7 +110,7 @@ motion_model::motion_model(std::size_t harmonics, double sball, double scoef) : 
 {
 }
 
-math::vec6 motion_model::operator()(math::vec6 const &v, time_type t)
+math::vec6 motion_model::operator()(math::vec6 const &v, time_t t)
 {
     double h = height_above_ellipsoid(v.data(), egm::rad, egm::flat);
     if (!heights(h))
@@ -130,7 +130,7 @@ math::vec6 motion_model::operator()(math::vec6 const &v, time_type t)
     rotational_acceleration(v.data(), rot_ac);
     _gpt.acceleration(v.data(), gpt_ac);
 
-    double st = sidereal_time(t); // звёздное время
+    double st = sidereal_time(t * 1000); // звёздное время
 
     lunar_model::coordinates(t, buf);
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, moon);

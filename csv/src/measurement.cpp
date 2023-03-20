@@ -23,19 +23,7 @@ static std::size_t field_end(std::string const &str, std::size_t begin)
     return field_end(str, begin, ';');
 }
 
-time_type parse_time(std::string const &str)
-{
-    int time[4]{};
-    for (std::size_t i{}, pos{}; i < 4; ++i)
-    {
-        std::size_t p;
-        time[i] = std::stoi(str.substr(pos, str.size() - pos), &p);
-        pos += p + 1;
-    }
-    return make_days(time[0]) + make_hour(time[1]) + make_min(time[2]) + make_sec(time[3]);
-}
-
-std::vector<motion_measurement> read_motion_measurements_from_csv(std::string const &filename, time_type tn)
+std::vector<motion_measurement> read_motion_measurements_from_csv(std::string const &filename, time_point_t tn)
 {
     std::ifstream fin = open_infile(filename);
     std::string buf;
@@ -48,6 +36,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(std::string co
     for (std::size_t number{2}; std::getline(fin, buf); ++number)
     {
         motion_measurement m;
+        m.t = tn;
         std::size_t count{}, begin{}, end{};
         // проматываем первые 18 полей
         while (count < 16)
@@ -59,8 +48,8 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(std::string co
         end = field_end(buf, begin = end + 1);
         try
         {
-            auto sec = std::stoll(buf.substr(begin, end - begin));
-            m.t = make_sec(sec);
+            auto t = std::stoll(buf.substr(begin, end - begin));
+            m.t += std::chrono::seconds(t);
         }
         catch (std::invalid_argument const &)
         {
@@ -73,7 +62,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(std::string co
         try
         {
             auto day = std::stoll(buf.substr(begin, end - begin));
-            m.t += tn + make_days(day);
+            m.t += std::chrono::days(day);
         }
         catch (std::invalid_argument const &)
         {
@@ -84,7 +73,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(std::string co
         try
         {
             auto sec = std::stoll(buf.substr(begin, end - begin));
-            m.t += make_sec(sec);
+            m.t += std::chrono::seconds(sec);
         }
         catch (std::invalid_argument const &)
         {
@@ -120,7 +109,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(std::string co
 
 std::ostream &operator<<(std::ostream &os, motion_measurement const &m)
 {
-    os << calendar{m.t};
+    write_to_stream(os, m.t);
     for (std::size_t i{}; i < 6; ++i)
     {
         os << ' ' << m.v[i];
@@ -132,14 +121,16 @@ bool read_measurement(std::istream &is, motion_measurement &m)
 {
     std::string str;
     is >> str;
-    if (str.empty())
-        return false;
-    m.t = make_time(str.c_str());
-    for (std::size_t i{}; i < 6; ++i)
+    if (!str.empty())
     {
-        is >> m.v[i];
+        m.t = parse_from_str<parse_format::long_format>(str);
+        for (std::size_t i{}; i < 6; ++i)
+        {
+            is >> m.v[i];
+        }
+        return true;
     }
-    return true;
+    return false;
 }
 
 std::vector<motion_measurement> read_motion_measurements_from_txt(std::string const &filename)

@@ -1,6 +1,6 @@
 #include <atmosphere.hpp>
 #include <formatting.hpp>
-#include <ctime>
+#include <timeutility.hpp>
 #include <cmath>
 
 double atmosphere1981(double h)
@@ -365,9 +365,9 @@ double atmosphere2004_dynamic(double const *pos, double h,
     return rho * k0 * (1 + k1 + k2 + k3 + k4);
 }
 
-int day_of_the_year(time_type t);
+int day_of_the_year(time_t t);
 
-double atmosphere2004(double const *p, double h, time_type t, double sol_long, double sol_incl,
+double atmosphere2004(double const *p, double h, time_t t, double sol_long, double sol_incl,
                       double f10_7, double f81, double kp)
 {
     h *= 1e-3;
@@ -380,15 +380,4 @@ double atmosphere2004(double const *p, double h, time_type t, double sol_long, d
         return atmosphere2004_static(h);
     }
     return atmosphere2004_dynamic(p, h, day_of_the_year(t), sol_long, sol_incl, f10_7, f81, kp);
-}
-
-int day_of_the_year(time_type t)
-{
-    t *= milliseconds;
-    auto tm_ptr = std::localtime(&t);
-    if (!tm_ptr)
-    {
-        throw_runtime_error("Failed to get day of the year from time %.", calendar{t});
-    }
-    return tm_ptr->tm_yday;
 }

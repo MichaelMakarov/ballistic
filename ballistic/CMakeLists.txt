@@ -10,13 +10,9 @@ add_library(
 	src/jd.cpp
 	src/gpt.cpp
 	src/transform.cpp
-	src/sunmoon.cpp
-	
+	src/sunmoon.cpp	
 	src/vsdebug.natvis
-
 	src/optimize.cpp
-
-	src/times.cpp
 )
 target_include_directories(ballistic PUBLIC include)
 target_link_libraries(ballistic PUBLIC mathlib queue_manager)

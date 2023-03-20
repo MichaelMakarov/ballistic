@@ -1,5 +1,5 @@
 #pragma once
-#include <times.hpp>
+#include <ctime>
 
 /**
  * @brief Вычисление плотности статической атмосферы согласно ГОСТ 1981.
@@ -22,5 +22,5 @@ double atmosphere1981(double h);
  * @param kp квазилогарифмический планетарный среднесуточный индекс геомагнитной возмущенности (баллы)
  * @return double
  */
-double atmosphere2004(double const *p, double h, time_type t, double sol_long, double sol_incl,
+double atmosphere2004(double const *p, double h, time_t t, double sol_long, double sol_incl,
                       double f10_7, double f81, double kp);

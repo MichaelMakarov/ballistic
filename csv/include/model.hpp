@@ -1,6 +1,7 @@
 #pragma once
 #include <ball.hpp>
 #include <maths.hpp>
+#include <timeutility.hpp>
 
 class motion_model
 {
@@ -17,5 +18,5 @@ public:
 
 public:
     motion_model(std::size_t harmonics, double sball, double scoef);
-    math::vec6 operator()(math::vec6 const &v, time_type t);
+    math::vec6 operator()(math::vec6 const &v, time_t t);
 };

@@ -79,7 +79,7 @@ public:
         }
         catch (std::exception const &ex)
         {
-            throw_runtime_error("Failed to load spaceweather data from % to file %.", _urlstr, filepath);
+            throw_runtime_error("Failed to load spaceweather data from % to file %. %.", _urlstr, filepath, ex.what());
         }
     }
 };
@@ -105,10 +105,10 @@ void read_geopotential(fs::path const &filepath)
 }
 
 std::vector<motion_measurement> read_motion_measurements_from_txt(std::string const &);
-std::vector<motion_measurement> read_motion_measurements_from_csv(std::string const &, time_type);
+std::vector<motion_measurement> read_motion_measurements_from_csv(std::string const &, time_point_t);
 void write_motion_measurements_to_txt(std::string const &, std::vector<motion_measurement> const &);
 
-auto read_measurements(fs::path const &filepath, time_type reft)
+auto read_measurements(fs::path const &filepath, std::string const &reft_str)
 {
     auto local_path = filepath.stem();
     local_path += ".txt";
@@ -118,7 +118,8 @@ auto read_measurements(fs::path const &filepath, time_type reft)
     }
     else
     {
-        auto measurements = read_motion_measurements_from_csv(filepath.string(), reft);
+        time_point_t t = parse_from_str<parse_format::long_format>(reft_str);
+        auto measurements = read_motion_measurements_from_csv(filepath.string(), t);
         write_motion_measurements_to_txt(local_path.string(), measurements);
         return measurements;
     }
@@ -147,7 +148,7 @@ configurer::configurer(std::string const &filename)
     }
     read_geopotential(u8path(geopotential_filepath));
     read_spaceweather();
-    _measurements = read_measurements(u8path(measurements_filepath), make_time(ref_time.c_str()));
+    _measurements = read_measurements(u8path(measurements_filepath), ref_time);
     _computation_filepath = "computation.log";
 }
 
