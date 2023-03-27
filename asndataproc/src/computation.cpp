@@ -1,6 +1,7 @@
-#include <computation.hpp>
 #include <fileutility.hpp>
 #include <printutility.hpp>
+#include <measurement.hpp>
+#include <figure.hpp>
 #include <forecast.hpp>
 #include <optimize.hpp>
 #include <maths.hpp>
@@ -254,9 +255,9 @@ void show_figure(computation_logger const &logger, figure_provider &provider)
     provider.show_residuals(x.data(), y1.data(), x.data(), y2.data(), x.size());
 }
 
-void compute_motion(std::vector<motion_measurement> const &measurements, std::string const &filename, figure_provider &provider)
+void compute_motion(std::vector<motion_measurement> const &measurements, fs::path const &filepath, figure_provider &provider)
 {
-    auto os = open_outfile(filename);
+    auto os = open_outfile(filepath);
     os << std::fixed;
     auto &first = measurements.front();
     math::vec<vecsize> v;

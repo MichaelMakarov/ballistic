@@ -1,10 +1,13 @@
-#include <computation.hpp>
 #include <iostream>
 #include <config.hpp>
 #include <timer.hpp>
+#include <figure.hpp>
+
+void compute_motion(std::vector<motion_measurement> const &measurements, std::filesystem::path const &filepath, figure_provider &provider);
 
 int main(int argc, char **argv)
 {
+
     watchtimer timer;
     figure_provider provider{argc, argv};
     try

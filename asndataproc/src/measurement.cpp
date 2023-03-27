@@ -3,6 +3,7 @@
 #include <csvutility.hpp>
 #include <measurement.hpp>
 #include <vector>
+#include <filesystem>
 
 constexpr char const *motion_headers[6]{"x", "y", "z", "vx", "vy", "vz"};
 
@@ -23,13 +24,13 @@ static std::size_t field_end(std::string const &str, std::size_t begin)
     return field_end(str, begin, ';');
 }
 
-std::vector<motion_measurement> read_motion_measurements_from_csv(std::string const &filename, time_point_t tn)
+std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const &filename, time_point_t tn)
 {
     std::ifstream fin = open_infile(filename);
     std::string buf;
     if (!std::getline(fin, buf))
     {
-        throw_runtime_error("Failed to read a header string from file %", filename);
+        throw_runtime_error("Failed to read a header string from file %", filename.string());
     }
     std::vector<motion_measurement> measurements;
     motion_measurement old;
@@ -133,7 +134,7 @@ bool read_measurement(std::istream &is, motion_measurement &m)
     return false;
 }
 
-std::vector<motion_measurement> read_motion_measurements_from_txt(std::string const &filename)
+std::vector<motion_measurement> read_motion_measurements_from_txt(fs::path const &filename)
 {
     std::vector<motion_measurement> measurements;
     auto fin = open_infile(filename);
@@ -146,7 +147,7 @@ std::vector<motion_measurement> read_motion_measurements_from_txt(std::string co
     return measurements;
 }
 
-void write_motion_measurements_to_txt(std::string const &filename, std::vector<motion_measurement> const &measurements)
+void write_motion_measurements_to_txt(fs::path const &filename, std::vector<motion_measurement> const &measurements)
 {
     auto fout = open_outfile(filename);
     fout << std::fixed;

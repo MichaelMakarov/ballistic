@@ -19,11 +19,17 @@ if (GIT_FOUND)
     endforeach()
 endif()
 
+set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
+set(BUILD_CURL_EXE OFF CACHE INTERNAL "" FORCE)
+
 include(scripts/functions.cmake)
 
+
 add_subdirectory(ballistic)
+add_subdirectory(utility)
+add_subdirectory(urlproc)
 # add_subdirectory(rkm)
-add_subdirectory(csv)
+add_subdirectory(asndataproc)
 
 if (MSVC)
     add_compile_options(_CRT_SECURE_NO_WARNINGS)

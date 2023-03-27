@@ -4,6 +4,7 @@
 #include <csvutility.hpp>
 #include <timeutility.hpp>
 #include <vector>
+#include <filesystem>
 
 struct spaceweather_node
 {
@@ -84,13 +85,13 @@ class spaceweather_handler
 
 public:
     spaceweather_handler() : _tn{}, _tk{} {}
-    spaceweather_handler(std::string const &filename)
+    spaceweather_handler(fs::path const &filename)
     {
         auto fin = open_infile(filename);
         std::string buf;
         if (!std::getline(fin, buf))
         {
-            throw_runtime_error("Failed to read header from file " + filename);
+            throw_runtime_error("Failed to read header from file " + filename.string());
         }
         _nodes.clear();
         std::size_t row{2};
@@ -132,7 +133,7 @@ spaceweather get_spaceweather(time_t t)
     return handler.get_spaceweather(t);
 }
 
-void read_spaceweather_from_csv(std::string const &filename)
+void read_spaceweather_from_csv(fs::path const &filename)
 {
     handler = spaceweather_handler{filename};
 }

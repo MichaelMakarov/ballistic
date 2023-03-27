@@ -1,16 +1,23 @@
+cmake_minimum_required(VERSION 3.12)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
+
 find_package(Qt5 COMPONENTS Core Widgets Charts REQUIRED)
 
+project(asndataproc_project)
+
+
 add_executable(
-    csv_kinematic_rotation
+    asndataproc
+
     src/main.cpp
     src/measurement.cpp
     src/model.cpp
     src/forecast.cpp
     src/computation.cpp
-    src/fileutility.cpp
     src/config.cpp
     src/initgpt.cpp
     src/timer.cpp
@@ -21,18 +28,13 @@ add_executable(
     src/csvutility.cpp
     src/timeutility.cpp
 )
-target_include_directories(
-    csv_kinematic_rotation
-    PUBLIC
-    include
-)
+target_include_directories(asndataproc PUBLIC include)
 target_link_libraries(
-    csv_kinematic_rotation
-    PUBLIC
+    asndataproc
     mathlib
     ballistic
-    libcurl
+    liburlproc
+    libutility
 	Qt5::Widgets
 	Qt5::Charts
 )
-#copydllfiles(csv_kinematic_rotation)
