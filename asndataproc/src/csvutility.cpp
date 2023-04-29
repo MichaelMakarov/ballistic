@@ -1,6 +1,6 @@
 #include <csvutility.hpp>
 
-std::size_t field_end(std::string const &str, std::size_t begin, char sep)
+std::size_t end_column(std::string const &str, std::size_t begin, char sep)
 {
     for (; begin != str.size(); ++begin)
     {

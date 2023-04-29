@@ -240,7 +240,7 @@ void fwdcopy(input_iterator input_begin, input_iterator input_end, output_iterat
     }
 }
 
-void show_figure(computation_logger const &logger, figure_provider &provider)
+void show_figure(computation_logger const &logger)
 {
     std::vector<double> x, y1, y2;
     auto &first_iter = logger.front();
@@ -252,10 +252,10 @@ void show_figure(computation_logger const &logger, figure_provider &provider)
     {
         x[i] = i + 1.0;
     }
-    provider.show_residuals(x.data(), y1.data(), x.data(), y2.data(), x.size());
+    figure_provider::show_residuals(x.data(), y1.data(), x.data(), y2.data(), x.size());
 }
 
-void compute_motion(std::vector<motion_measurement> const &measurements, fs::path const &filepath, figure_provider &provider)
+void compute_motion(std::vector<motion_measurement> const &measurements, fs::path const &filepath)
 {
     auto os = open_outfile(filepath);
     os << std::fixed;
@@ -295,7 +295,7 @@ void compute_motion(std::vector<motion_measurement> const &measurements, fs::pat
         print_statistic_(os, logger.back());
         os << std::endl;
         print_iterations(os, logger);
-        show_figure(logger, provider);
+        show_figure(logger);
     }
     if (exptr)
     {

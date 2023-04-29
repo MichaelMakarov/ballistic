@@ -13,12 +13,6 @@ double jc2000(int64_t t)
     return jc2000(time_to_jd(t * 1000));
 }
 
-constexpr double spr{1296000};
-constexpr double sec_to_rad(double sec)
-{
-    return sec * (2 * pi / spr);
-}
-
 void sum_of(double c1, double s1, double c2, double s2, double &c, double &s)
 {
     c = c1 * c2 - s1 * s2;
@@ -29,7 +23,7 @@ void solar_model::coordinates(int64_t t, double *ort, double *sph)
 {
     const double T = jc2000(t);
     // solar average longitude
-    double L = sec_to_rad(1009677.85 + (100 * spr + 2771.27 + 1.089 * T) * T);
+    double L = sec_to_rad(1009677.85 + (100 * 1296000 + 2771.27 + 1.089 * T) * T);
     // solar perigee average longitude
     double lc = sec_to_rad(1018578.046 + (6190.046 + (1.666 + 0.012 * T) * T) * T);
     // the Earth's orbit eccentricity

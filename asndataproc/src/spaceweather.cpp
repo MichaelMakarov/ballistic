@@ -14,16 +14,16 @@ struct spaceweather_node
     time_t t;
 };
 
-static std::size_t field_end(std::string const &str, std::size_t begin)
+static std::size_t end_column(std::string const &str, std::size_t begin)
 {
-    return field_end(str, begin, ',');
+    return end_column(str, begin, ',');
 }
 
 spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
 {
     spaceweather_node node{};
     std::size_t begin{}, end{};
-    end = field_end(str, begin);
+    end = end_column(str, begin);
     try
     {
         time_point_t t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin));
@@ -35,7 +35,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     for (std::size_t i{}; i < 11; ++i)
     {
-        end = field_end(str, begin = end + 1);
+        end = end_column(str, begin = end + 1);
     }
     try
     {
@@ -48,7 +48,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     for (std::size_t i{}; i < 14; ++i)
     {
-        end = field_end(str, begin = end + 1);
+        end = end_column(str, begin = end + 1);
     }
     try
     {
@@ -61,7 +61,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     for (std::size_t i{}; i < 5; ++i)
     {
-        end = field_end(str, begin = end + 1);
+        end = end_column(str, begin = end + 1);
     }
     try
     {

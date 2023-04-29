@@ -19,9 +19,9 @@ bool compare(motion_measurement const &left, motion_measurement const &right)
     return false;
 }
 
-static std::size_t field_end(std::string const &str, std::size_t begin)
+static std::size_t end_column(std::string const &str, std::size_t begin)
 {
-    return field_end(str, begin, ';');
+    return end_column(str, begin, ';');
 }
 
 std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const &filename, time_point_t tn)
@@ -42,11 +42,11 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         // проматываем первые 18 полей
         while (count < 16)
         {
-            end = field_end(buf, begin = end + 1);
+            end = end_column(buf, begin = end + 1);
             ++count;
         }
         // поле с секундами
-        end = field_end(buf, begin = end + 1);
+        end = end_column(buf, begin = end + 1);
         try
         {
             auto t = std::stoll(buf.substr(begin, end - begin));
@@ -57,9 +57,9 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
             throw_invalid_argument("Invalid format of string with seconds in row %.", number);
         }
         // пропускаем поле
-        end = field_end(buf, begin = end + 1);
+        end = end_column(buf, begin = end + 1);
         // поле с фиксированным временем, где нужно взять сутки
-        end = field_end(buf, begin = end + 1);
+        end = end_column(buf, begin = end + 1);
         try
         {
             auto day = std::stoll(buf.substr(begin, end - begin));
@@ -70,7 +70,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
             throw_runtime_error("Invalid format of the string with time in row %.", number);
         }
         // поле с доп. секундой
-        end = field_end(buf, begin = end + 1);
+        end = end_column(buf, begin = end + 1);
         try
         {
             auto sec = std::stoll(buf.substr(begin, end - begin));
@@ -84,11 +84,11 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         for (std::size_t i{}; i < 2; ++i)
         {
             // пустое поле
-            end = field_end(buf, begin = end + 1);
+            end = end_column(buf, begin = end + 1);
             for (std::size_t j{}; j < 3; ++j)
             {
                 auto index = i * 3 + j;
-                end = field_end(buf, begin = end + 1);
+                end = end_column(buf, begin = end + 1);
                 try
                 {
                     m.v[index] = std::stod(buf.substr(begin, end - begin));
@@ -152,4 +152,40 @@ void write_motion_measurements_to_txt(fs::path const &filename, std::vector<moti
     auto fout = open_outfile(filename);
     fout << std::fixed;
     std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<motion_measurement>{fout, "\n"});
+}
+
+std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path const &filepath)
+{
+    auto fin = open_infile(filepath);
+    std::vector<rotation_measurement> measurements;
+    std::string buf;
+    if (!std::getline(fin, buf))
+    {
+        throw_runtime_error("Failed to read headers from file with rotational measurements %", filepath);
+    }
+    for (std::size_t number{2}; std::getline(fin, buf); ++number)
+    {
+        rotation_measurement m;
+        std::size_t begin{}, end{};
+        for (std::size_t i{}; i < 2; ++i)
+        {
+            end = end_column(buf, begin);
+            begin = end + 1;
+        }
+        for (std::size_t i{}; i < 4; ++i)
+        {
+            end = end_column(buf, begin);
+            try
+            {
+                m.q[i] = std::stod(buf.substr(begin, end - begin));
+            }
+            catch (std::invalid_argument const &)
+            {
+                throw_invalid_argument("Failed to read q[%] value in row %.", i, number);
+            }
+            begin = end + 1;
+        }
+        measurements.push_back(m);
+    }
+    return measurements;
 }

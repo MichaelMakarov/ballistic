@@ -7,6 +7,7 @@
 #include <qtabwidget.h>
 #include <qapplication.h>
 #include <formatting.hpp>
+#include <mutex>
 
 using namespace QtCharts;
 
@@ -80,16 +81,25 @@ auto make_chartview(double const *x, double const *y, std::size_t count)
     return view;
 }
 
+std::unique_ptr<QApplication> figure_provider::app;
+
+void figure_provider::initialize(int argc, char **argv)
+{
+    if (!app)
+    {
+        app = std::make_unique<QApplication>(argc, argv);
+    }
+}
+
 void figure_provider::show_residuals(double const *x1, double const *y1, double const *x2, double const *y2, std::size_t count)
 {
-    QApplication app(_argc, _argv);
     auto tab = new QTabWidget;
     tab->setWindowTitle("Отображение невязок");
     tab->addTab(make_chartview(x1, y1, count), "Первая итерация");
     tab->addTab(make_chartview(x2, y2, count), "Последняя итерация");
     tab->setMinimumSize(500, 500);
     tab->showMaximized();
-    auto ret = app.exec();
+    auto ret = app->exec();
     if (0 != ret)
     {
         throw_runtime_error("Application execution finished with code % not equal to 0.", ret);

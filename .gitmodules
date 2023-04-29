@@ -1,15 +1,9 @@
-[submodule "external/wjson"]
-	path = external/wjson
-	url = https://github.com/mambaru/wjson.git
 [submodule "external/MathLib"]
 	path = external/MathLib
 	url = http://192.168.2.237/ImageProc/cpp/MathLib.git
 [submodule "external/QueueManager"]
 	path = external/QueueManager
 	url = http://192.168.2.237/common/cpp/QueueManager.git
-[submodule "external/curl"]
-	path = external/curl
-	url = https://github.com/curl/curl.git
 [submodule "external/pugixml"]
 	path = external/pugixml
 	url = https://github.com/zeux/pugixml.git

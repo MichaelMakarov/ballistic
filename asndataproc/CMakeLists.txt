@@ -27,6 +27,8 @@ add_executable(
     src/spaceweather.cpp
     src/csvutility.cpp
     src/timeutility.cpp
+    src/rotation.cpp
+    src/geometry.cpp
 )
 target_include_directories(asndataproc PUBLIC include)
 target_link_libraries(
@@ -35,6 +37,7 @@ target_link_libraries(
     ballistic
     liburlproc
     libutility
+    pugixml
 	Qt5::Widgets
 	Qt5::Charts
 )

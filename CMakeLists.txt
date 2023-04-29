@@ -24,12 +24,15 @@ set(BUILD_CURL_EXE OFF CACHE INTERNAL "" FORCE)
 
 include(scripts/functions.cmake)
 
+subdirs(
+    ballistic
+    utility
+    urlproc
+    asndataproc
+    plot
+)
 
-add_subdirectory(ballistic)
-add_subdirectory(utility)
-add_subdirectory(urlproc)
-# add_subdirectory(rkm)
-add_subdirectory(asndataproc)
+
 
 if (MSVC)
     add_compile_options(_CRT_SECURE_NO_WARNINGS)

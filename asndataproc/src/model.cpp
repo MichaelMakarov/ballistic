@@ -106,7 +106,30 @@ void solar_pressure_acceleration(math::vec3 sun, math::vec3 const &p, double coe
     }
 }
 
-motion_model::motion_model(std::size_t harmonics, double sball, double scoef) : _gpt{harmonics}, _sball{sball}, _scoef{scoef}
+double compute_square(math::vec3 const &v, geometry const *geometries, std::size_t count, math::quaternion const &q)
+{
+    double square{};
+    for (std::size_t i{}; i < count; ++i)
+    {
+        auto &geom = geometries[i];
+        auto n = q.rotate(geom.n);
+        double prod = n * v;
+        if (prod > 0)
+        {
+            prod /= v.length();
+            double s = geom.s * prod;
+            square += s;
+        }
+    }
+    return square;
+}
+
+motion_model::motion_model(std::size_t harmonics, double sball, double scoef, geometry const *geometries, std::size_t count)
+    : _gpt{harmonics},
+      _sball{sball},
+      _scoef{scoef},
+      _geometries{geometries},
+      _count{count}
 {
 }
 

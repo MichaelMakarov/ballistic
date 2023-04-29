@@ -9,7 +9,7 @@
  * @param sep сепаратор
  * @return std::size_t
  */
-std::size_t field_end(std::string const &str, std::size_t begin, char sep);
+std::size_t end_column(std::string const &str, std::size_t begin, char sep);
 /**
  * @brief Извлечение из строки значения double.
  *

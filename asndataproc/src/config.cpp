@@ -3,6 +3,7 @@
 #include <spaceweather.hpp>
 #include <formatting.hpp>
 #include <urlproc.hpp>
+#include <geometry.hpp>
 #include <iostream>
 
 void read_spaceweather_from_csv(fs::path const &filepath);
@@ -25,7 +26,7 @@ void initialize_geopotential(fs::path const &filepath);
 void read_geopotential(fs::path const &filepath)
 {
     std::cout << "Reading geopotential data from " << filepath << std::endl;
-    initialize_geopotential(filepath.string());
+    initialize_geopotential(filepath);
 }
 
 std::vector<motion_measurement> read_motion_measurements_from_txt(fs::path const &);
@@ -51,25 +52,46 @@ auto read_measurements(fs::path const &filepath, std::string const &reft_str)
     }
 }
 
+std::vector<geometry> read_geometry_model_from_xml(fs::path const &filepath);
+
 configurer::configurer(fs::path const &filepath)
 {
     auto fin = open_infile(filepath);
-    std::string geopotential_filepath, measurements_filepath, ref_time;
+    std::string geopotential_filepath;
     if (!std::getline(fin, geopotential_filepath))
     {
         throw_runtime_error("Failed to read a filepath to geopotential data from config file.");
     }
+    std::string measurements_filepath;
     if (!std::getline(fin, measurements_filepath))
     {
         throw_runtime_error("Failed to read a filepath to measurements from config file.");
     }
+    std::string rotation_filepath1;
+    if (!std::getline(fin, rotation_filepath1))
+    {
+        throw_runtime_error("Failed to read a filepath to rotational data.");
+    }
+    std::string rotation_filepath2;
+    if (!std::getline(fin, rotation_filepath2))
+    {
+        throw_runtime_error("Failed to read a filepath to rotational data.");
+    }
+    std::string ref_time;
     if (!std::getline(fin, ref_time))
     {
         throw_runtime_error("Failed to read reference time from config file.");
     }
+    std::string geometry_filepath;
+    if (!std::getline(fin, geometry_filepath))
+    {
+        throw_runtime_error("Failed to read a filepath to geometry data from config file.");
+    }
     read_geopotential(path_from_utf8(geopotential_filepath));
     read_spaceweather();
     _measurements = read_measurements(path_from_utf8(measurements_filepath), ref_time);
+    _geometries = read_geometry_model_from_xml(path_from_utf8(geometry_filepath));
     _computation_filepath = "computation.log";
     std::cout << "Computational info will be written to " << _computation_filepath << std::endl;
+    throw_runtime_error("stop");
 }

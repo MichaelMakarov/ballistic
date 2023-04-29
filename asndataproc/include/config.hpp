@@ -1,11 +1,17 @@
 #pragma once
+#include <geometry.hpp>
 #include <measurement.hpp>
 #include <pathutility.hpp>
 #include <vector>
 
+/**
+ * @brief Объект конфигурации приложения
+ *
+ */
 class configurer
 {
     std::vector<motion_measurement> _measurements;
+    std::vector<geometry> _geometries;
     fs::path _computation_filepath;
 
 public:
