@@ -8,6 +8,11 @@ time_t to_time_t(time_point_t t)
     return clock_type::to_time_t(t);
 }
 
+time_point_t from_time_t(time_t t)
+{
+    return clock_type::from_time_t(t);
+}
+
 std::mutex times_sync_obj;
 
 int day_of_the_year(time_t t)

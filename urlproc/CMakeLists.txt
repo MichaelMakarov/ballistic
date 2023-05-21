@@ -6,4 +6,4 @@ project(urlproc_library)
 
 add_library(liburlproc STATIC src/urlproc.cpp)
 target_include_directories(liburlproc PUBLIC include)
-target_link_libraries(liburlproc PRIVATE libcurl PRIVATE libutility)
+target_link_libraries(liburlproc PRIVATE CURL::libcurl PRIVATE libutility)

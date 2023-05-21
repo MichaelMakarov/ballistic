@@ -3,6 +3,8 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(ballistic_projects)
 
+find_package(CURL REQUIRED)
+
 ## getting all subdirectories in external
 set(extdir ${CMAKE_CURRENT_SOURCE_DIR}/external)
 FILE(GLOB required_submodules RELATIVE ${extdir} ${extdir}/*)
@@ -20,7 +22,6 @@ if (GIT_FOUND)
 endif()
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
-set(BUILD_CURL_EXE OFF CACHE INTERNAL "" FORCE)
 
 include(scripts/functions.cmake)
 
@@ -34,6 +35,6 @@ subdirs(
 
 
 
-if (MSVC)
-    add_compile_options(_CRT_SECURE_NO_WARNINGS)
-endif()
+# if (MSVC)
+#     add_compile_options(_CRT_SECURE_NO_WARNINGS)
+# endif()

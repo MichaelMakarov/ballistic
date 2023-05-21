@@ -1,5 +1,6 @@
 #pragma once
 #include <timeutility.hpp>
+#include <maths.hpp>
 
 /**
  * @brief Измерение движения
@@ -18,5 +19,5 @@ struct motion_measurement
 struct rotation_measurement
 {
     time_point_t t;
-    double q[4];
+    math::quaternion q;
 };

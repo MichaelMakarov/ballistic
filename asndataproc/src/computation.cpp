@@ -4,6 +4,7 @@
 #include <figure.hpp>
 #include <forecast.hpp>
 #include <optimize.hpp>
+#include <rotator.hpp>
 #include <maths.hpp>
 #include <algorithm>
 #include <iomanip>
@@ -35,14 +36,19 @@ struct math::residual_function<vecsize>
 
 class model_optimizer : public optimization_interface_t
 {
-    using iterator = std::vector<motion_measurement>::const_iterator;
-    iterator _begin, _end;
+    std::vector<motion_measurement>::const_iterator _begin, _end;
+    rotator _rotator;
+    std::vector<geometry> const &_geometries;
 
 public:
-    model_optimizer(std::vector<motion_measurement> const &measurements)
+    model_optimizer(std::vector<motion_measurement> const &motion_meas,
+                    std::vector<rotation_measurement> const &rotation_meas,
+                    std::vector<geometry> const &geometries)
+        : _rotator{rotation_meas},
+          _geometries{geometries}
     {
-        _begin = std::begin(measurements);
-        _end = std::lower_bound(std::begin(measurements), std::end(measurements), _begin->t + std::chrono::days(1),
+        _begin = std::begin(motion_meas);
+        _end = std::lower_bound(std::begin(motion_meas), std::end(motion_meas), _begin->t + std::chrono::days(1),
                                 [](motion_measurement const &m, time_point_t t)
                                 { return m.t < t; });
     }
@@ -63,7 +69,7 @@ public:
     }
     void residual(math::vec<vecsize> const &v, math::array_view<6> *res) const override
     {
-        auto f = make_forecast(v.subv<0, 6>(), to_time_t(_begin->t), to_time_t((_end - 1)->t), v[6], 0); //[7]);
+        auto f = make_forecast(v.subv<0, 6>(), to_time_t(_begin->t), to_time_t((_end - 1)->t), v[6], 0, ); //[7]);
         for (auto iter = _begin; iter != _end; ++iter)
         {
             auto &m = *iter;
@@ -255,17 +261,17 @@ void show_figure(computation_logger const &logger)
     figure_provider::show_residuals(x.data(), y1.data(), x.data(), y2.data(), x.size());
 }
 
-void compute_motion(std::vector<motion_measurement> const &measurements, fs::path const &filepath)
+void compute_motion(std::vector<motion_measurement> const &motion_meas, fs::path const &filepath)
 {
     auto os = open_outfile(filepath);
     os << std::fixed;
-    auto &first = measurements.front();
+    auto &first = motion_meas.front();
     math::vec<vecsize> v;
     std::copy(first.v, first.v + 6, v.data());
     // v[7] = reflection_coefficient(15, 0.4);
-    //  auto f = make_forecast(v.subv<0, 6>(), first.t, measurements.back().t, v[6]);
+    //  auto f = make_forecast(v.subv<0, 6>(), first.t, motion_meas.back().t, v[6]);
     std::size_t iterations{20};
-    model_optimizer optimizer{measurements};
+    model_optimizer optimizer{motion_meas};
     computation_logger logger;
     logger.reserve(iterations);
     os << "T = ";

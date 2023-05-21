@@ -5,6 +5,7 @@ using clock_type = std::chrono::system_clock;
 using time_point_t = clock_type::time_point;
 
 time_t to_time_t(time_point_t t);
+time_point_t from_time_t(time_t t);
 
 /**
  * @brief Вычисление номера дня в году.

@@ -154,7 +154,7 @@ void write_motion_measurements_to_txt(fs::path const &filename, std::vector<moti
     std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<motion_measurement>{fout, "\n"});
 }
 
-std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path const &filepath)
+std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path const &filepath, time_point_t reft)
 {
     auto fin = open_infile(filepath);
     std::vector<rotation_measurement> measurements;
@@ -165,19 +165,27 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
     }
     for (std::size_t number{2}; std::getline(fin, buf); ++number)
     {
-        rotation_measurement m;
+        rotation_measurement m{.t = reft};
         std::size_t begin{}, end{};
-        for (std::size_t i{}; i < 2; ++i)
+        end = end_column(buf, begin);
+        end = end_column(buf, begin = end + 1);
+        try
         {
-            end = end_column(buf, begin);
-            begin = end + 1;
+            auto sec = std::stoll(buf.substr(begin, end - begin));
+            m.t += std::chrono::seconds{sec};
         }
+        catch (const std::invalid_argument &)
+        {
+            throw_invalid_argument("Failed to parse seconds in row %.", number);
+        }
+        begin = end + 1;
+        double q[4];
         for (std::size_t i{}; i < 4; ++i)
         {
             end = end_column(buf, begin);
             try
             {
-                m.q[i] = std::stod(buf.substr(begin, end - begin));
+                q[i] = std::stod(buf.substr(begin, end - begin));
             }
             catch (std::invalid_argument const &)
             {
@@ -185,7 +193,56 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
             }
             begin = end + 1;
         }
+        m.q = math::quaternion{q[1], q[2], q[3], q[0]};
         measurements.push_back(m);
     }
     return measurements;
+}
+
+std::ostream &operator<<(std::ostream &os, rotation_measurement const &m)
+{
+    write_to_stream(os, m.t);
+    os << ' ' << m.q.s() << ' ' << m.q.x() << ' ' << m.q.y() << ' ' << m.q.z();
+    return os;
+}
+
+bool read_measurement(std::istream &is, rotation_measurement &m)
+{
+    std::string str;
+    is >> str;
+    if (!str.empty())
+    {
+        m.t = parse_from_str<parse_format::long_format>(str);
+        double q[4];
+        for (std::size_t i{}; i < 4; ++i)
+        {
+            is >> q[i];
+        }
+        m.q = math::quaternion(q[0], q[1], q[2], q[3]);
+        return true;
+    }
+    return false;
+}
+
+std::vector<rotation_measurement> read_rotation_measurements_from_txt(fs::path const &filepath)
+{
+    std::vector<rotation_measurement> measurements;
+    auto fin = open_infile(filepath);
+    while (!fin.eof())
+    {
+        rotation_measurement m;
+        if (!read_measurement(fin, m))
+        {
+            break;
+        }
+        measurements.push_back(m);
+    }
+    return measurements;
+}
+
+void write_rotation_measurements_to_txt(fs::path const &filepath, std::vector<rotation_measurement> const &measurements)
+{
+    auto fout = open_outfile(filepath);
+    fout << std::fixed;
+    std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<rotation_measurement>{fout, "\n"});
 }

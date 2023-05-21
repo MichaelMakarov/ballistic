@@ -4,23 +4,6 @@
 
 namespace math
 {
-	/**
-	 * @brief Конвертер шага времени к double.
-	 *
-	 * @tparam D тип шага по времени
-	 */
-	template <typename D>
-	struct timestep_converter
-	{
-		/**
-		 * @brief Преобразование к double.
-		 *
-		 * @param t значение шага времени
-		 * @return double
-		 */
-		static double convert(D const &t) { return static_cast<double>(t); }
-	};
-
 	inline auto min_of(std::size_t left, std::size_t right)
 	{
 		return left < right ? left : right;
@@ -138,8 +121,8 @@ namespace math
 				{
 					if (k != n)
 					{
-						double up = timestep_converter<D>::convert(t - _points[index + k].t);
-						double down = timestep_converter<D>::convert(_points[index + n].t - _points[index + k].t);
+						double up = static_cast<double>(t - _points[index + k].t);
+						double down = static_cast<double>(_points[index + n].t - _points[index + k].t);
 						mult *= up / down;
 					}
 				}
@@ -153,7 +136,7 @@ namespace math
 		pair rk4(pair const &in, D const &delta, F &func)
 		{
 			pair out{};
-			double step = timestep_converter<D>::convert(delta), step_2 = 0.5 * step, step_6 = step_2 / 3;
+			double step = static_cast<double>(delta), step_2 = 0.5 * step, step_6 = step_2 / 3;
 			T t = in.t + delta / 2;
 			out.t = in.t + delta;
 			V k1 = func(in.v, in.t);
@@ -177,7 +160,7 @@ namespace math
 			// значение по корректору
 			pair out{};
 			// шаг интегрирования
-			double delta = timestep_converter<D>::convert(step);
+			double delta = static_cast<double>(step);
 			// значение по предиктору
 			V x = arr[0] * b[0];
 			for (std::size_t i{1}; i < 8; ++i)

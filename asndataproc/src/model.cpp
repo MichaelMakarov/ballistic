@@ -34,6 +34,29 @@ void atmosphere_deceleration(math::vec3 const &v, double density, double s, doub
     }
 }
 
+void atmosphere_deceleration(math::vec3 const &v, double density,
+                             geometry const *geometries, std::size_t count,
+                             double cx, math::quaternion const &q,
+                             double *out)
+{
+    math::vec3 l{v};
+    l.normalize();
+    // площадь отражающей поверхности
+    double s{};
+    for (std::size_t i{}; i < count; ++i)
+    {
+        auto &geom = geometries[i];
+        auto n = q.rotate(geom.n);
+        double mul = n * l;
+        if (mul > 0)
+        {
+            double ds = geom.s * mul;
+            s += ds;
+        }
+    }
+    atmosphere_deceleration(v, density, cx * s, out);
+}
+
 /**
  * @brief Проверка, находится ли точка внутри конуса
  *
@@ -124,12 +147,14 @@ double compute_square(math::vec3 const &v, geometry const *geometries, std::size
     return square;
 }
 
-motion_model::motion_model(std::size_t harmonics, double sball, double scoef, geometry const *geometries, std::size_t count)
+motion_model::motion_model(std::size_t harmonics, double sball, double scoef,
+                           std::vector<geometry> const &geometries,
+                           rotator const &rot)
     : _gpt{harmonics},
       _sball{sball},
       _scoef{scoef},
       _geometries{geometries},
-      _count{count}
+      _rotator{rot}
 {
 }
 
@@ -168,7 +193,10 @@ math::vec6 motion_model::operator()(math::vec6 const &v, time_t t)
     double solar_incl = std::atan(buf[2] / std::sqrt(math::sqr(buf[0]) + math::sqr(buf[1])));
     double density = atmosphere2004(v.data(), h, t, solar_long, solar_incl, s.f10_7, s.f81, s.kp);
     // double density = atmosphere1981(h);
-    atmosphere_deceleration(v.subv<3, 3>(), density, _sball, atm_ac);
+    // atmosphere_deceleration(v.subv<3, 3>(), density, _sball, atm_ac);
+    atmosphere_deceleration(v.subv<3, 3>(), density,
+                            _geometries.data(), _geometries.size(), _sball,
+                            _rotator.get_quaternion(from_time_t(t)), atm_ac);
     // solar_pressure_acceleration(sun, v3, _scoef, lig_ac);
 
     return {v[3], v[4], v[5],
