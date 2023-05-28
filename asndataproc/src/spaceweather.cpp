@@ -1,10 +1,10 @@
 #include <spaceweather.hpp>
 #include <fileutility.hpp>
-#include <formatting.hpp>
 #include <csvutility.hpp>
 #include <timeutility.hpp>
 #include <vector>
 #include <filesystem>
+#include <format>
 
 struct spaceweather_node
 {
@@ -31,7 +31,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     catch (const std::exception &ex)
     {
-        throw_runtime_error("Failed to read time from line %. %", row, ex.what());
+        throw std::runtime_error(std::format("Failed to read time from line {}. {}", row, ex.what()));
     }
     for (std::size_t i{}; i < 11; ++i)
     {
@@ -44,7 +44,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     catch (std::exception const &ex)
     {
-        throw_runtime_error("Failed to read kp sum from line %. %", row, ex.what());
+        throw std::runtime_error(std::format("Failed to read kp sum from line {}. {}", row, ex.what()));
     }
     for (std::size_t i{}; i < 14; ++i)
     {
@@ -57,7 +57,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     catch (std::exception const &ex)
     {
-        throw_runtime_error("Failed to read F10.7 from line %. %", row, ex.what());
+        throw std::runtime_error(std::format("Failed to read F10.7 from line {}. {}", row, ex.what()));
     }
     for (std::size_t i{}; i < 5; ++i)
     {
@@ -70,7 +70,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     }
     catch (std::exception const &ex)
     {
-        throw_runtime_error("Failed to read F81 from line %. %", row, ex.what());
+        throw std::runtime_error(std::format("Failed to read F81 from line {}. {}", row, ex.what()));
     }
     return node;
 }
@@ -91,7 +91,7 @@ public:
         std::string buf;
         if (!std::getline(fin, buf))
         {
-            throw_runtime_error("Failed to read header from file " + filename.string());
+            throw std::runtime_error("Failed to read header from file " + filename.string());
         }
         _nodes.clear();
         std::size_t row{2};
@@ -117,8 +117,10 @@ public:
     {
         if (_tn > t || t > _tk)
         {
-            throw_out_of_range("Time % of the request is out of range of space weather time interval % - %.",
-                               clock_type::from_time_t(t), clock_type::from_time_t(_tn), clock_type::from_time_t(_tk));
+            throw std::out_of_range(std::format("Time {} of the request is out of range of space weather time interval {} - {}.",
+                                                clock_type::from_time_t(t),
+                                                clock_type::from_time_t(_tn),
+                                                clock_type::from_time_t(_tk)));
         }
         std::size_t index = (t - _tn) / day;
         auto &node = _nodes[index];

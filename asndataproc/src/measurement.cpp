@@ -1,9 +1,9 @@
-#include <formatting.hpp>
 #include <fileutility.hpp>
 #include <csvutility.hpp>
 #include <measurement.hpp>
 #include <vector>
 #include <filesystem>
+#include <format>
 
 constexpr char const *motion_headers[6]{"x", "y", "z", "vx", "vy", "vz"};
 
@@ -30,7 +30,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
     std::string buf;
     if (!std::getline(fin, buf))
     {
-        throw_runtime_error("Failed to read a header string from file %", filename.string());
+        throw std::runtime_error("Failed to read a header string from file " + filename.string());
     }
     std::vector<motion_measurement> measurements;
     motion_measurement old;
@@ -54,7 +54,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw_invalid_argument("Invalid format of string with seconds in row %.", number);
+            throw std::invalid_argument(std::format("Invalid format of string with seconds in row {}.", number));
         }
         // пропускаем поле
         end = end_column(buf, begin = end + 1);
@@ -67,7 +67,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw_runtime_error("Invalid format of the string with time in row %.", number);
+            throw std::runtime_error(std::format("Invalid format of the string with time in row {}.", number));
         }
         // поле с доп. секундой
         end = end_column(buf, begin = end + 1);
@@ -78,7 +78,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw_runtime_error("Invalid format of the string width additional second in row %.", number);
+            throw std::runtime_error(std::format("Invalid format of the string width additional second in row {}.", number));
         }
         // поля с координатами и скоростями
         for (std::size_t i{}; i < 2; ++i)
@@ -95,7 +95,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
                 }
                 catch (std::exception const &ex)
                 {
-                    throw_runtime_error("Invalid format of coordinate % value in line %. %", motion_headers[index], number, ex.what());
+                    throw std::runtime_error(std::format("Invalid format of coordinate {} value in line {}. {}", motion_headers[index], number, ex.what()));
                 }
             }
         }
@@ -161,7 +161,7 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
     std::string buf;
     if (!std::getline(fin, buf))
     {
-        throw_runtime_error("Failed to read headers from file with rotational measurements %", filepath);
+        throw std::runtime_error("Failed to read headers from file with rotational measurements " + filepath.string());
     }
     for (std::size_t number{2}; std::getline(fin, buf); ++number)
     {
@@ -176,7 +176,7 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
         }
         catch (const std::invalid_argument &)
         {
-            throw_invalid_argument("Failed to parse seconds in row %.", number);
+            throw std::invalid_argument(std::format("Failed to parse seconds in row {}.", number));
         }
         begin = end + 1;
         double q[4];
@@ -189,7 +189,7 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
             }
             catch (std::invalid_argument const &)
             {
-                throw_invalid_argument("Failed to read q[%] value in row %.", i, number);
+                throw std::invalid_argument(std::format("Failed to read q[{}] value in row {}.", i, number));
             }
             begin = end + 1;
         }

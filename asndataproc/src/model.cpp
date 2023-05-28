@@ -1,8 +1,8 @@
 #include <model.hpp>
-#include <formatting.hpp>
 #include <transform.hpp>
 #include <atmosphere.hpp>
 #include <spaceweather.hpp>
+#include <format>
 
 /**
  * @brief Ускорения во вращающейся СК
@@ -147,12 +147,11 @@ double compute_square(math::vec3 const &v, geometry const *geometries, std::size
     return square;
 }
 
-motion_model::motion_model(std::size_t harmonics, double sball, double scoef,
+motion_model::motion_model(std::size_t harmonics, double sball,
                            std::vector<geometry> const &geometries,
                            rotator const &rot)
     : _gpt{harmonics},
       _sball{sball},
-      _scoef{scoef},
       _geometries{geometries},
       _rotator{rot}
 {
@@ -163,7 +162,7 @@ math::vec6 motion_model::operator()(math::vec6 const &v, time_t t)
     double h = height_above_ellipsoid(v.data(), egm::rad, egm::flat);
     if (!heights(h))
     {
-        throw_invalid_argument("Height % is out of bounds % - %.", h, heights.begin, heights.end);
+        throw std::invalid_argument(std::format("Height {} is out of bounds {} - {}.", h, heights.begin, heights.end));
     }
     double rot_ac[3]{}; // ускорение из-за вращения СК
     double gpt_ac[3]{}; // ускорение от геопотенциала
@@ -194,10 +193,11 @@ math::vec6 motion_model::operator()(math::vec6 const &v, time_t t)
     double density = atmosphere2004(v.data(), h, t, solar_long, solar_incl, s.f10_7, s.f81, s.kp);
     // double density = atmosphere1981(h);
     // atmosphere_deceleration(v.subv<3, 3>(), density, _sball, atm_ac);
-    atmosphere_deceleration(v.subv<3, 3>(), density,
-                            _geometries.data(), _geometries.size(), _sball,
-                            _rotator.get_quaternion(from_time_t(t)), atm_ac);
-    // solar_pressure_acceleration(sun, v3, _scoef, lig_ac);
+    math::vec3 vv;
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::backward(v.subv<3, 3>().data(), st, vv.data());
+    atmosphere_deceleration(vv, density, _geometries.data(), _geometries.size(), _sball,
+                            _rotator.get_quaternion(clock_type::from_time_t(t)), buf);
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, atm_ac);
 
     return {v[3], v[4], v[5],
             rot_ac[0] + gpt_ac[0] + lun_ac[0] + sol_ac[0] + atm_ac[0] + lig_ac[0],

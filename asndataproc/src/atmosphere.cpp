@@ -1,5 +1,4 @@
 #include <atmosphere.hpp>
-#include <formatting.hpp>
 #include <timeutility.hpp>
 #include <cmath>
 
@@ -377,5 +376,5 @@ double atmosphere2004(double const *p, double h, time_t t, double sol_long, doub
     {
         return atmosphere2004_static(h);
     }
-    return atmosphere2004_dynamic(p, h, day_of_the_year(t), sol_long, sol_incl, f10_7, f81, kp);
+    return atmosphere2004_dynamic(p, h, day_of_year(t), sol_long, sol_incl, f10_7, f81, kp);
 }

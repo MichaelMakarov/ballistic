@@ -1,7 +1,6 @@
 #include <config.hpp>
 #include <fileutility.hpp>
 #include <spaceweather.hpp>
-#include <formatting.hpp>
 #include <urlproc.hpp>
 #include <geometry.hpp>
 #include <iostream>
@@ -90,58 +89,73 @@ math::quaternion read_tracker_quaternion_from_file(fs::path const &filepath)
 
 std::vector<geometry> read_geometry_model_from_xml(fs::path const &filepath);
 
-configurer::configurer(fs::path const &filepath)
+application_configurer::application_configurer(fs::path const &filepath)
 {
     auto fin = open_infile(filepath);
     std::string geopotential_filepath;
     if (!std::getline(fin, geopotential_filepath))
     {
-        throw_runtime_error("Failed to read a filepath to geopotential data from config file.");
+        throw std::runtime_error("Failed to read a filepath to geopotential data from config file.");
     }
     std::string measurements_filepath;
     if (!std::getline(fin, measurements_filepath))
     {
-        throw_runtime_error("Failed to read a filepath to measurements from config file.");
+        throw std::runtime_error("Failed to read a filepath to measurements from config file.");
     }
-    std::string rotation_filepath1;
-    if (!std::getline(fin, rotation_filepath1))
+    std::string rotation_filepath;
+    if (!std::getline(fin, rotation_filepath))
     {
-        throw_runtime_error("Failed to read a filepath to rotational data.");
+        throw std::runtime_error("Failed to read a filepath to rotational data.");
     }
-    std::string tracker1_filepath;
-    if (!std::getline(fin, tracker1_filepath))
+    std::string tracker_filepath;
+    if (!std::getline(fin, tracker_filepath))
     {
-        throw_runtime_error("Failed to read a filepath to the trakcer's properties from config file.");
-    }
-    std::string rotation_filepath2;
-    if (!std::getline(fin, rotation_filepath2))
-    {
-        throw_runtime_error("Failed to read a filepath to rotational data.");
-    }
-    std::string tracker2_filepath;
-    if (!std::getline(fin, tracker2_filepath))
-    {
-        throw_runtime_error("Failed to read a filepath to the trakcer's properties from config file.");
+        throw std::runtime_error("Failed to read a filepath to the trakcer's properties from config file.");
     }
     std::string ref_time;
     if (!std::getline(fin, ref_time))
     {
-        throw_runtime_error("Failed to read reference time from config file.");
+        throw std::runtime_error("Failed to read reference time from config file.");
     }
     std::string geometry_filepath;
     if (!std::getline(fin, geometry_filepath))
     {
-        throw_runtime_error("Failed to read a filepath to geometry data from config file.");
+        throw std::runtime_error("Failed to read a filepath to geometry data from config file.");
     }
     read_geopotential(path_from_utf8(geopotential_filepath));
     read_spaceweather();
     _motion_measurements = read_motion_measurements(path_from_utf8(measurements_filepath), ref_time);
-    _tracker1_measurements = read_rotation_measurements(path_from_utf8(rotation_filepath1), ref_time);
-    auto tracker1_q = read_tracker_quaternion_from_file(path_from_utf8(tracker1_filepath));
-    _tracker2_measurements = read_rotation_measurements(path_from_utf8(rotation_filepath2), ref_time);
-    auto tracker2_q = read_tracker_quaternion_from_file(path_from_utf8(tracker2_filepath));
+    _rotation_measurements = read_rotation_measurements(path_from_utf8(rotation_filepath), ref_time);
+    auto tracker_q = read_tracker_quaternion_from_file(path_from_utf8(tracker_filepath));
     _geometries = read_geometry_model_from_xml(path_from_utf8(geometry_filepath));
     _computation_filepath = "computation.log";
     std::cout << "Computational info will be written to " << _computation_filepath << std::endl;
-    throw_runtime_error("stop");
+    for (auto &m : _rotation_measurements)
+    {
+        m.q = inverse(m.q);
+        m.q = mul(tracker_q, m.q);
+    }
+    set_iterators();
+}
+
+void application_configurer::set_iterators()
+{
+    auto tn = std::max(_motion_measurements.front().t, _rotation_measurements.front().t);
+    auto tk = std::min(_motion_measurements.back().t, _rotation_measurements.back().t);
+    if (tn >= tk)
+    {
+        throw std::runtime_error("Motion and rotation measurements' time intervals are incompatible.");
+    }
+    auto lower_compare = [](auto const &m, auto t)
+    {
+        return m.t < t;
+    };
+    auto upper_compare = [](auto t, auto const &m)
+    {
+        return t < m.t;
+    };
+    _mbegin = std::lower_bound(std::begin(_motion_measurements), std::end(_motion_measurements), tn, lower_compare);
+    _mend = std::upper_bound(std::begin(_motion_measurements), std::end(_motion_measurements), tk, upper_compare);
+    _rbegin = std::lower_bound(std::begin(_rotation_measurements), std::end(_rotation_measurements), tn, lower_compare);
+    _rend = std::upper_bound(std::begin(_rotation_measurements), std::end(_rotation_measurements), tk, upper_compare);
 }

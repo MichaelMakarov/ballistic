@@ -5,8 +5,9 @@
 #include <qscatterseries.h>
 #include <qvalueaxis.h>
 #include <qtabwidget.h>
+#include <qmenubar.h>
+#include <qmainwindow.h>
 #include <qapplication.h>
-#include <formatting.hpp>
 #include <mutex>
 
 using namespace QtCharts;
@@ -91,17 +92,46 @@ void figure_provider::initialize(int argc, char **argv)
     }
 }
 
+void save_widget_image(QWidget *wgt, QString const &filename)
+{
+    if (!wgt->grab(wgt->rect()).save(filename, "PNG"))
+    {
+        throw std::runtime_error("Failed to save image to " + filename.toStdString());
+    }
+}
+
+class graphics_window : public QMainWindow
+{
+    QTabWidget *_tab;
+
+public:
+    graphics_window(QWidget *parent = nullptr) : QMainWindow(parent)
+    {
+        setWindowTitle("Отображение невязок");
+        menuBar()->addAction("Сохранить изображение графика", this, &graphics_window::on_save_clicked);
+        setCentralWidget(_tab = new QTabWidget);
+    }
+    void update_graphics(double const *x1, double const *y1, double const *x2, double const *y2, std::size_t count)
+    {
+        _tab->addTab(make_chartview(x1, y1, count), "Первая итерация");
+        _tab->addTab(make_chartview(x2, y2, count), "Последняя итерация");
+    }
+
+private:
+    void on_save_clicked()
+    {
+        save_widget_image(_tab->currentWidget(), _tab->tabText(_tab->currentIndex()) + ".png");
+    }
+};
+
 void figure_provider::show_residuals(double const *x1, double const *y1, double const *x2, double const *y2, std::size_t count)
 {
-    auto tab = new QTabWidget;
-    tab->setWindowTitle("Отображение невязок");
-    tab->addTab(make_chartview(x1, y1, count), "Первая итерация");
-    tab->addTab(make_chartview(x2, y2, count), "Последняя итерация");
-    tab->setMinimumSize(500, 500);
-    tab->showMaximized();
-    auto ret = app->exec();
-    if (0 != ret)
+    auto wnd = new graphics_window;
+    wnd->update_graphics(x1, y1, x2, y2, count);
+    wnd->setMinimumSize(500, 500);
+    wnd->showMaximized();
+    if (0 != app->exec())
     {
-        throw_runtime_error("Application execution finished with code % not equal to 0.", ret);
+        throw std::runtime_error("Application did not finish with code 0.");
     }
 }

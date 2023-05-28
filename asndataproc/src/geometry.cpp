@@ -1,7 +1,6 @@
 #include <geometry.hpp>
 #include <pugixml.hpp>
 #include <fileutility.hpp>
-#include <formatting.hpp>
 #include <functional>
 
 using namespace std::placeholders;
@@ -146,7 +145,10 @@ std::vector<geometry> read_geometry_model_from_xml(fs::path const &filepath)
     auto res = doc.load(fin);
     if (!res)
     {
-        throw_runtime_error("Failed to read xml document %. Error status %. %", filepath, res.status, res.description());
+        using namespace std::string_literals;
+        throw std::runtime_error("Failed to read xml document " + filepath.string() +
+                                 std::format(" Error status {}. ", static_cast<int>(res.status)) +
+                                 res.description());
     }
     auto root = doc.find_node(std::bind(&check_node_name, _1, "iss_model"));
     auto node = root.find_node(std::bind(&check_node_name, _1, "iss_node"));

@@ -1,29 +1,21 @@
 #include <timeutility.hpp>
-#include <formatting.hpp>
 #include <sstream>
-#include <mutex>
+#include <stdexcept>
+#include <format>
 
-time_t to_time_t(time_point_t t)
+unsigned day_of_year(time_t t)
 {
-    return clock_type::to_time_t(t);
-}
-
-time_point_t from_time_t(time_t t)
-{
-    return clock_type::from_time_t(t);
-}
-
-std::mutex times_sync_obj;
-
-int day_of_the_year(time_t t)
-{
-    std::lock_guard<std::mutex> lg{times_sync_obj};
-    auto tmp = std::gmtime(&t);
-    if (!tmp)
-    {
-        throw_runtime_error("Failed to create calendar representation for time %.", t);
-    }
-    return tmp->tm_yday;
+    std::chrono::seconds seconds{t};
+    std::chrono::sys_days days{std::chrono::duration_cast<std::chrono::days>(seconds)};
+    std::chrono::year_month_day ymd{days};
+    int y = static_cast<int>(ymd.year());
+    unsigned m = static_cast<unsigned>(ymd.month());
+    unsigned d = static_cast<unsigned>(ymd.day());
+    unsigned n1 = (275 * m) / 9;
+    unsigned n2 = (m + 9) / 12;
+    unsigned n3 = 1 + (y - 4 * (y / 4) + 2) / 3;
+    unsigned n = n1 - (n2 * n3) + d - 30;
+    return n;
 }
 
 constexpr auto date_fmt{"%F"};
@@ -35,7 +27,7 @@ time_point_t parse_by_format(std::string const &str, char const *fmt)
     std::stringstream sstr{str};
     if (!std::chrono::from_stream(sstr, fmt, t))
     {
-        throw_invalid_argument("Invalid string % to parse time from using format %.", str, fmt);
+        throw std::invalid_argument(std::format("Invalid string {} to parse time from using format {}.", str, fmt));
     }
     return t;
 }

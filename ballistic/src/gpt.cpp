@@ -1,7 +1,7 @@
 #include <ball.hpp>
 #include <maths.hpp>
-#include <formatting.hpp>
 #include <cmath>
+#include <stdexcept>
 
 using namespace math;
 
@@ -74,7 +74,7 @@ geopotential::geopotential(size_t count)
 {
 	if (egm::harmonics.empty())
 	{
-		throw_runtime_error("Гармоники геопотенциала не загружены.");
+		throw std::runtime_error("Гармоники геопотенциала не загружены.");
 	}
 	count = std::min(count, egm::count);
 	size_t dim = ((count + 1) * (count + 2)) / 2;
