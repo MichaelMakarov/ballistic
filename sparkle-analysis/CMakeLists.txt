@@ -1,17 +1,18 @@
-project(highorbit_evaluation)
+cmake_minimum_required(VERSION 3.12)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+project(sparkle_analysis)
 
 if (MSVC)
 	add_compile_options(/Zc:__cplusplus)
 endif()
 
-set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 find_package(Qt5 COMPONENTS Core Widgets Charts REQUIRED)
 
 set(
 	core_sources
-
 	src/core/json.cpp
 	src/core/SGP4.cpp
 	src/core/observation.cpp
@@ -45,7 +46,7 @@ set(
 )
 
 add_executable(
-	kinematic_rotation
+	${PROJECT_NAME}
 
 	src/main.cpp
 	${core_sources}
@@ -53,14 +54,14 @@ add_executable(
 	
  )
 target_include_directories(
-	kinematic_rotation 
+	${PROJECT_NAME}
 	PRIVATE
 	include/core include/gui
 	${CMAKE_SOURCE_DIR}/external/wjson 
 	${CMAKE_SOURCE_DIR}/external/wjson/external/faslib
 )
 target_link_libraries(
-	kinematic_rotation
+	${PROJECT_NAME}
 	ballistic
 	Qt5::Widgets
 	Qt5::Charts

@@ -5,12 +5,11 @@ set(CMAKE_AUTOMOC ON)
 
 find_package(Qt5 COMPONENTS Core Widgets Charts REQUIRED)
 
-project(asndataproc_project)
+project(asn_analysis)
 
 
 add_executable(
-    asndataproc
-
+    ${PROJECT_NAME}
     src/main.cpp
     src/measurement.cpp
     src/model.cpp
@@ -28,12 +27,12 @@ add_executable(
     src/geometry.cpp
     src/rotator.cpp
 )
-target_include_directories(asndataproc PUBLIC include)
+target_include_directories(${PROJECT_NAME} PUBLIC include)
 target_link_libraries(
-    asndataproc
+    ${PROJECT_NAME}
     mathlib
     ballistic
-    liburlproc
+    liburl
     libutility
     pugixml
 	Qt5::Widgets
