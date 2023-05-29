@@ -29,6 +29,7 @@ subdirs(
     ballistic
     utility
     url
+    json
     asn-analysis
     sparkle-analysis
 

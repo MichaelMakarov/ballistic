@@ -6,7 +6,7 @@ project(utility_library)
 
 add_library(
     libutility STATIC 
-    src/fileutility.cpp 
-    src/pathutility.cpp
+    src/fileutils.cpp 
+    src/printutils.cpp
 )
 target_include_directories(libutility PUBLIC include)

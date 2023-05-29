@@ -1,6 +1,4 @@
 #pragma once
-#include <filesystem>
+#include <string_view>
 
-namespace fs = std::filesystem;
-
-void load_file_from_url(fs::path const &urlpath, fs::path const &filepath);
+void load_file_from_url(std::string_view urlpath, std::string_view filepath);

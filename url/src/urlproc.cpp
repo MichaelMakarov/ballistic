@@ -1,5 +1,5 @@
 #include <urlproc.hpp>
-#include <fileutility.hpp>
+#include <fileutils.hpp>
 #include <curl/curl.h>
 #include <sstream>
 #include <stdexcept>
@@ -43,9 +43,9 @@ public:
     {
         curl_easy_cleanup(_url);
     }
-    void load_file(fs::path const &urlpath, std::ostream &os) const
+    void load_file(std::string_view urlpath, std::ostream &os) const
     {
-        throw_if_failed(curl_easy_setopt(_url, CURLoption::CURLOPT_URL, urlpath.string().c_str()),
+        throw_if_failed(curl_easy_setopt(_url, CURLoption::CURLOPT_URL, urlpath.data()),
                         "Failed to set option CURLOPT_URL.");
         throw_if_failed(curl_easy_setopt(_url, CURLoption::CURLOPT_WRITEFUNCTION, &write_file),
                         "Failed to set option CURLOPT_WRITEFUNCTION.");
@@ -65,23 +65,22 @@ struct fileloader
     {
         curl_global_cleanup();
     }
-    void load_file(fs::path const &urlpath, fs::path const &filepath) const
+    void load_file(std::string_view urlpath, std::string_view filepath) const
     {
         try
         {
             auto fout = open_outfile(filepath);
-            url_wrapper url;
-            url.load_file(urlpath, fout);
+            url_wrapper{}.load_file(urlpath, fout);
         }
         catch (std::exception const &ex)
         {
             using namespace std::string_literals;
-            throw std::runtime_error("Failed to load file from " + urlpath.string() + ". "s + ex.what());
+            throw std::runtime_error("Не удалось скачать файл по url = "s + urlpath.data() + ". "s + ex.what());
         }
     }
 };
 
-void load_file_from_url(fs::path const &urlpath, fs::path const &filepath)
+void load_file_from_url(std::string_view urlpath, std::string_view filepath)
 {
     fileloader{}.load_file(urlpath, filepath);
 }

@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <format>
 
+using namespace std::string_literals;
+
 struct spaceweather_node
 {
     double kp;
@@ -26,7 +28,7 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     end = end_column(str, begin);
     try
     {
-        time_point_t t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin));
+        time_point_t t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin).data());
         node.t = clock_type::to_time_t(t);
     }
     catch (const std::exception &ex)
@@ -85,13 +87,13 @@ class spaceweather_handler
 
 public:
     spaceweather_handler() : _tn{}, _tk{} {}
-    spaceweather_handler(fs::path const &filename)
+    spaceweather_handler(std::string_view filename)
     {
         auto fin = open_infile(filename);
         std::string buf;
         if (!std::getline(fin, buf))
         {
-            throw std::runtime_error("Failed to read header from file " + filename.string());
+            throw std::runtime_error("Не удалось прочитать заголовочную строку в файле "s + filename.data());
         }
         _nodes.clear();
         std::size_t row{2};
@@ -135,7 +137,23 @@ spaceweather get_spaceweather(time_t t)
     return handler.get_spaceweather(t);
 }
 
-void read_spaceweather_from_csv(fs::path const &filename)
+void read_spaceweather_from_csv(std::string_view filename)
 {
     handler = spaceweather_handler{filename};
+}
+
+#include <urlproc.hpp>
+#include <iostream>
+
+void read_spaceweather()
+{
+    constexpr std::string_view filepath{"spaceweather.csv"};
+    if (!exists(filepath))
+    {
+        constexpr auto urlpath{"http://celestrak.org/SpaceData/SW-Last5Years.csv"};
+        std::cout << "Loading spaceweather data from " << urlpath << std::endl;
+        load_file_from_url(urlpath, filepath);
+    }
+    std::cout << "Reading spaceweather data from " << filepath << std::endl;
+    read_spaceweather_from_csv(filepath);
 }

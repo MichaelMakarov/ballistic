@@ -1,0 +1,12 @@
+cmake_minimum_required(VERSION 3.8)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+project(json_library)
+
+if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/yas/include)
+    message(STATUS "init ${CMAKE_CURRENT_SOURCE_DIR}/yas")
+    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- ${CMAKE_CURRENT_SOURCE_DIR}/yas WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+endif()
+
+add_library(jsonlib INTERFACE)
+target_include_directories(jsonlib INTERFACE yas/include)

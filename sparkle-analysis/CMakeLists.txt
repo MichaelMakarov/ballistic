@@ -27,7 +27,6 @@ set(
 
 set(
 	gui_sources
-
 	include/gui/mainview.hpp
 	src/gui/mainview.cpp
 	include/gui/pathview.hpp
@@ -37,9 +36,7 @@ set(
 	include/gui/datamodel.hpp
 	src/gui/datamodel.cpp
 	include/gui/presenter.hpp
-	src/gui/presenter.cpp
-
-	
+	src/gui/presenter.cpp	
 	include/gui/gui.hpp
 	src/gui/gui.cpp
     src/gui/guisrc.qrc
@@ -47,22 +44,17 @@ set(
 
 add_executable(
 	${PROJECT_NAME}
-
 	src/main.cpp
 	${core_sources}
 	${gui_sources}
 	
  )
 target_include_directories(
-	${PROJECT_NAME}
-	PRIVATE
-	include/core include/gui
-	${CMAKE_SOURCE_DIR}/external/wjson 
-	${CMAKE_SOURCE_DIR}/external/wjson/external/faslib
+	${PROJECT_NAME} PRIVATE 
+	include/core include/gui 
 )
-target_link_libraries(
-	${PROJECT_NAME}
-	ballistic
-	Qt5::Widgets
-	Qt5::Charts
+target_link_libraries(	
+	${PROJECT_NAME} 
+	ballistic jsonlib 
+	Qt5::Widgets Qt5::Charts 
 )

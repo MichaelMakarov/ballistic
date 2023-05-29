@@ -1,9 +1,11 @@
-#include <fileutility.hpp>
+#include <fileutils.hpp>
 #include <csvutility.hpp>
 #include <measurement.hpp>
 #include <vector>
 #include <filesystem>
 #include <format>
+
+using namespace std::string_literals;
 
 constexpr char const *motion_headers[6]{"x", "y", "z", "vx", "vy", "vz"};
 
@@ -24,13 +26,13 @@ static std::size_t end_column(std::string const &str, std::size_t begin)
     return end_column(str, begin, ';');
 }
 
-std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const &filename, time_point_t tn)
+std::vector<motion_measurement> read_motion_measurements_from_csv(std::string_view filename, time_point_t tn)
 {
     std::ifstream fin = open_infile(filename);
     std::string buf;
     if (!std::getline(fin, buf))
     {
-        throw std::runtime_error("Failed to read a header string from file " + filename.string());
+        throw std::runtime_error("Failed to read header line from "s + filename.data());
     }
     std::vector<motion_measurement> measurements;
     motion_measurement old;
@@ -54,7 +56,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw std::invalid_argument(std::format("Invalid format of string with seconds in row {}.", number));
+            throw std::invalid_argument(std::format("Invalid format of seconds in row {}.", number));
         }
         // пропускаем поле
         end = end_column(buf, begin = end + 1);
@@ -67,7 +69,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw std::runtime_error(std::format("Invalid format of the string with time in row {}.", number));
+            throw std::runtime_error(std::format("Invlaid time's format in row {}.", number));
         }
         // поле с доп. секундой
         end = end_column(buf, begin = end + 1);
@@ -78,7 +80,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
         }
         catch (std::invalid_argument const &)
         {
-            throw std::runtime_error(std::format("Invalid format of the string width additional second in row {}.", number));
+            throw std::runtime_error(std::format("Invalid second's format in row {}.", number));
         }
         // поля с координатами и скоростями
         for (std::size_t i{}; i < 2; ++i)
@@ -95,7 +97,7 @@ std::vector<motion_measurement> read_motion_measurements_from_csv(fs::path const
                 }
                 catch (std::exception const &ex)
                 {
-                    throw std::runtime_error(std::format("Invalid format of coordinate {} value in line {}. {}", motion_headers[index], number, ex.what()));
+                    throw std::runtime_error(std::format("Invalid coordinate {} format in row {}. {}", motion_headers[index], number, ex.what()));
                 }
             }
         }
@@ -124,7 +126,7 @@ bool read_measurement(std::istream &is, motion_measurement &m)
     is >> str;
     if (!str.empty())
     {
-        m.t = parse_from_str<parse_format::long_format>(str);
+        m.t = parse_from_str<parse_format::long_format>(str.data());
         for (std::size_t i{}; i < 6; ++i)
         {
             is >> m.v[i];
@@ -134,7 +136,7 @@ bool read_measurement(std::istream &is, motion_measurement &m)
     return false;
 }
 
-std::vector<motion_measurement> read_motion_measurements_from_txt(fs::path const &filename)
+std::vector<motion_measurement> read_motion_measurements_from_txt(std::string_view filename)
 {
     std::vector<motion_measurement> measurements;
     auto fin = open_infile(filename);
@@ -147,21 +149,21 @@ std::vector<motion_measurement> read_motion_measurements_from_txt(fs::path const
     return measurements;
 }
 
-void write_motion_measurements_to_txt(fs::path const &filename, std::vector<motion_measurement> const &measurements)
+void write_motion_measurements_to_txt(std::string_view filename, std::vector<motion_measurement> const &measurements)
 {
     auto fout = open_outfile(filename);
     fout << std::fixed;
     std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<motion_measurement>{fout, "\n"});
 }
 
-std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path const &filepath, time_point_t reft)
+std::vector<rotation_measurement> read_rotation_measurements_from_csv(std::string_view filepath, time_point_t reft)
 {
     auto fin = open_infile(filepath);
     std::vector<rotation_measurement> measurements;
     std::string buf;
     if (!std::getline(fin, buf))
     {
-        throw std::runtime_error("Failed to read headers from file with rotational measurements " + filepath.string());
+        throw std::runtime_error("Failed to read header line from "s + filepath.data());
     }
     for (std::size_t number{2}; std::getline(fin, buf); ++number)
     {
@@ -176,7 +178,7 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
         }
         catch (const std::invalid_argument &)
         {
-            throw std::invalid_argument(std::format("Failed to parse seconds in row {}.", number));
+            throw std::invalid_argument(std::format("Failed to read second in row {}.", number));
         }
         begin = end + 1;
         double q[4];
@@ -189,7 +191,7 @@ std::vector<rotation_measurement> read_rotation_measurements_from_csv(fs::path c
             }
             catch (std::invalid_argument const &)
             {
-                throw std::invalid_argument(std::format("Failed to read q[{}] value in row {}.", i, number));
+                throw std::invalid_argument(std::format("Failed to read q[{}] in row {}.", i, number));
             }
             begin = end + 1;
         }
@@ -212,7 +214,7 @@ bool read_measurement(std::istream &is, rotation_measurement &m)
     is >> str;
     if (!str.empty())
     {
-        m.t = parse_from_str<parse_format::long_format>(str);
+        m.t = parse_from_str<parse_format::long_format>(str.data());
         double q[4];
         for (std::size_t i{}; i < 4; ++i)
         {
@@ -224,7 +226,7 @@ bool read_measurement(std::istream &is, rotation_measurement &m)
     return false;
 }
 
-std::vector<rotation_measurement> read_rotation_measurements_from_txt(fs::path const &filepath)
+std::vector<rotation_measurement> read_rotation_measurements_from_txt(std::string_view filepath)
 {
     std::vector<rotation_measurement> measurements;
     auto fin = open_infile(filepath);
@@ -240,9 +242,60 @@ std::vector<rotation_measurement> read_rotation_measurements_from_txt(fs::path c
     return measurements;
 }
 
-void write_rotation_measurements_to_txt(fs::path const &filepath, std::vector<rotation_measurement> const &measurements)
+void write_rotation_measurements_to_txt(std::string_view filepath, std::vector<rotation_measurement> const &measurements)
 {
     auto fout = open_outfile(filepath);
     fout << std::fixed;
     std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<rotation_measurement>{fout, "\n"});
+}
+
+std::string make_local_txtname(std::string_view csvname)
+{
+    auto begin = std::max(std::strrchr(csvname.data(), '/'), std::strrchr(csvname.data(), '\\'));
+    // если строка не содержит слэшей
+    if (!begin)
+        begin = csvname.data();
+    else
+        ++begin;
+    auto end = std::strrchr(begin, '.');
+    return std::string(begin, end - begin) + ".txt";
+}
+
+#include <iostream>
+#include <timeutility.hpp>
+
+std::vector<motion_measurement> read_motion_measurements(std::string_view filename, std::string_view reftstr)
+{
+    auto txtname = make_local_txtname(filename);
+    if (exists(txtname))
+    {
+        std::cout << "Reading motion measurements from " << txtname << std::endl;
+        return read_motion_measurements_from_txt(txtname);
+    }
+    else
+    {
+        std::cout << "Reading motion measurements from " << filename << " using reference time " << reftstr << std::endl;
+        time_point_t t = parse_from_str<parse_format::long_format>(reftstr.data());
+        auto measurements = read_motion_measurements_from_csv(filename, t);
+        write_motion_measurements_to_txt(txtname, measurements);
+        return measurements;
+    }
+}
+
+std::vector<rotation_measurement> read_rotation_measurements(std::string_view filename, std::string_view reftstr)
+{
+    auto txtname = make_local_txtname(filename);
+    if (exists(txtname))
+    {
+        std::cout << "Reading rotation measurements from " << txtname << std::endl;
+        return read_rotation_measurements_from_txt(txtname);
+    }
+    else
+    {
+        std::cout << "Reading rotation measurements from " << filename << " using reference time " << reftstr << std::endl;
+        time_point_t t = parse_from_str<parse_format::long_format>(reftstr.data());
+        auto measurements = read_rotation_measurements_from_csv(filename, t);
+        write_rotation_measurements_to_txt(txtname, measurements);
+        return measurements;
+    }
 }

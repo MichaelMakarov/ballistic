@@ -1,4 +1,5 @@
-#include <wjson/wjson.hpp>
+#include <yas/serialize.hpp>
+#include <yas/std_types.hpp>
 #include <maths.hpp>
 #include <observation.hpp>
 #include <settings.hpp>

@@ -21,7 +21,7 @@ unsigned day_of_year(time_t t)
 constexpr auto date_fmt{"%F"};
 constexpr auto datetime_fmt{"%F_%T"};
 
-time_point_t parse_by_format(std::string const &str, char const *fmt)
+time_point_t parse_by_format(char const *str, char const *fmt)
 {
     time_point_t t;
     std::stringstream sstr{str};
@@ -33,13 +33,13 @@ time_point_t parse_by_format(std::string const &str, char const *fmt)
 }
 
 template <>
-time_point_t parse_from_str<parse_format::short_format>(std::string const &str)
+time_point_t parse_from_str<parse_format::short_format>(char const *str)
 {
     return parse_by_format(str, date_fmt);
 }
 
 template <>
-time_point_t parse_from_str<parse_format::long_format>(std::string const &str)
+time_point_t parse_from_str<parse_format::long_format>(char const *str)
 {
     return parse_by_format(str, datetime_fmt);
 }

@@ -30,7 +30,7 @@ enum class parse_format
  * @return time_point_t
  */
 template <parse_format fmt>
-time_point_t parse_from_str(std::string const &str);
+time_point_t parse_from_str(char const *str);
 /**
  * @brief Запись в поток.
  *

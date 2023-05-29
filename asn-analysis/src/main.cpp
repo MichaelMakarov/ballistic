@@ -1,7 +1,7 @@
-#include <iostream>
 #include <config.hpp>
 #include <timer.hpp>
 #include <figure.hpp>
+#include <iostream>
 
 int main(int argc, char **argv)
 {

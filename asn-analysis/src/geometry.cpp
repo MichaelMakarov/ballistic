@@ -1,7 +1,9 @@
 #include <geometry.hpp>
 #include <pugixml.hpp>
-#include <fileutility.hpp>
+#include <fileutils.hpp>
 #include <functional>
+#include <sstream>
+#include <format>
 
 using namespace std::placeholders;
 
@@ -138,17 +140,15 @@ void parse_iss_node(pugi::xml_node const &node, std::vector<geometry> &geometrie
     }
 }
 
-std::vector<geometry> read_geometry_model_from_xml(fs::path const &filepath)
+std::vector<geometry> read_geometry_model_from_xml(std::string_view filepath)
 {
     auto fin = open_infile(filepath);
     pugi::xml_document doc;
     auto res = doc.load(fin);
     if (!res)
     {
-        using namespace std::string_literals;
-        throw std::runtime_error("Failed to read xml document " + filepath.string() +
-                                 std::format(" Error status {}. ", static_cast<int>(res.status)) +
-                                 res.description());
+        throw std::runtime_error(std::format("Не удалось прочитать xml документ {}. Статус ошибки {}. {}",
+                                             filepath, static_cast<int>(res.status), res.description()));
     }
     auto root = doc.find_node(std::bind(&check_node_name, _1, "iss_model"));
     auto node = root.find_node(std::bind(&check_node_name, _1, "iss_node"));
