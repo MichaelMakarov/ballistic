@@ -1,18 +1,21 @@
 #pragma once
-#include <integration.hpp>
+
 #include <maths.hpp>
 #include <times.hpp>
 
-using namespace math;
+namespace math
+{
+    template <size_t size>
+    vec<size> operator*(vec<size> const &left, time_t right)
+    {
+        return left * static_cast<double>(right / 1000);
+    }
 
-/**
- * @brief Прогноз движения
- *
- */
-using forecast = integrator<vec6, time_h, time_h>;
+}
 
-class rotator;
-class object_model;
+#include <integration.hpp>
+
+using forecast = math::integrator<math::vec6, time_t, time_t>;
 
 /**
  * @brief Интегрирование по базовой модели движения центра масс
@@ -21,17 +24,4 @@ class object_model;
  * @param tk конечное время
  * @return forecast
  */
-forecast make_forecast(const vec6 &v, time_h tn, time_h tk);
-
-/**
- * @brief Интегрирование по расширенной можели движения центра масс.
- *
- * @param mp начальные параметры движения
- * @param tk конечное время
- * @param r параметры вращения
- * @param o модель объекта
- * @return forecast
- */
-forecast make_forecast(const vec6 &v, time_h tn, time_h tk, const rotator &r, const object_model &o);
-
-forecast make_forecast(const vec6 &v, time_h tn, time_h tk, double s, double m);
+forecast make_forecast(const math::vec6 &v, time_type tn, time_type tk);

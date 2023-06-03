@@ -16,7 +16,7 @@ inline constexpr auto jd1970{2440587.5};
  * @brief Кол-во миллисекунд в сутках
  *
  */
-constexpr int64_t ms_per_day{86'400'000};
+constexpr time_t secperday{86'400};
 
 /**
  * @brief Вычисление юлианской даты.
@@ -24,18 +24,18 @@ constexpr int64_t ms_per_day{86'400'000};
  * @param t время прошедшее с 1970 года (мс)
  * @return double
  */
-double time_to_jd(int64_t t)
+double time_to_jd(time_t t)
 {
-	constexpr double mult{1. / ms_per_day};
+	constexpr double mult{1. / secperday};
 	return t * mult + jd1970;
 }
 /**
  * @brief Приведение юлианской даты ко времени
  *
  */
-int64_t jd_to_time(double jd)
+time_t jd_to_time(double jd)
 {
-	return static_cast<int64_t>(jd - jd1970) * ms_per_day;
+	return static_cast<time_t>(jd - jd1970) * secperday;
 }
 /**
  * @brief Вычисление кол-ва юлианских столетий по юлианской дате от эпохи J2000.
@@ -122,7 +122,7 @@ double sidereal_time_true(double jc, double jt)
 	return sidereal_time_mean(jc, jt) + nutation(jc);
 }
 
-double sidereal_time(int64_t t)
+double sidereal_time(time_t t)
 {
 	// юлианская дата
 	double jd{};
@@ -131,6 +131,5 @@ double sidereal_time(int64_t t)
 	frac_jd(time_to_jd(t), jd, jt);
 	// юлианские столетия
 	double jc = jc2000(jd + jt);
-
 	return sidereal_time_true(jc, jt);
 }

@@ -1,5 +1,5 @@
 #include <atmosphere.hpp>
-#include <timeutility.hpp>
+#include <times.hpp>
 #include <cmath>
 
 double atmosphere1981(double h)

@@ -174,8 +174,6 @@ namespace math
 			arr[7] = func(in.v, in.t);
 			// значение по корректору
 			pair out{};
-			// шаг интегрирования
-			double delta = static_cast<double>(step);
 			// значение по предиктору
 			V x = arr[0] * b[0];
 			for (std::size_t i{1}; i < 8; ++i)
@@ -187,11 +185,11 @@ namespace math
 				// renew
 				arr[i - 1] = arr[i];
 			}
-			x *= delta;
+			x = x * step;
 			x += in.v;
 			out.t = in.t + step;
 			out.v += func(x, out.t) * c[7];
-			out.v *= delta;
+			out.v = out.v * step;
 			out.v += in.v;
 			return out;
 		}

@@ -39,7 +39,7 @@ public:
           _geometries{geometries}
     {
         _end = std::lower_bound(_begin, _end, _begin->t + std::chrono::days(1),
-                                [](motion_measurement const &m, time_point_t t)
+                                [](motion_measurement const &m, time_type t)
                                 { return m.t < t; });
     }
     math::vector get_residuals(math::vector const &v) const override
@@ -47,8 +47,8 @@ public:
         math::vec6 mv;
         std::copy(v.begin(), v.begin() + 6, mv.data());
         auto f = make_forecast(mv,
-                               clock_type::to_time_t(_begin->t),
-                               clock_type::to_time_t((_end - 1)->t),
+                               std::chrono::system_clock::to_time_t(_begin->t),
+                               std::chrono::system_clock::to_time_t((_end - 1)->t),
                                v[6],
                                _geometries,
                                _rotator);
@@ -57,7 +57,7 @@ public:
         for (auto iter = _begin; iter != _end; ++iter)
         {
             auto &m = *iter;
-            auto p = f.point(clock_type::to_time_t(m.t));
+            auto p = f.point(std::chrono::system_clock::to_time_t(m.t));
             for (std::size_t i{}; i < 6; ++i)
             {
                 rv[index++] = m.v[i] - p[i];

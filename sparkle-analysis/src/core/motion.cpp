@@ -1,281 +1,189 @@
 #include <motion.hpp>
 #include <forecast.hpp>
 #include <transform.hpp>
-#include <models.hpp>
-#include <future>
-#include <array>
+#include <ball.hpp>
+#include <optimization.hpp>
+#include <ostream>
 
-/**
- * @brief Вариация для координаты
- *
- */
-constexpr double position_var{25};
-/**
- * @brief Вариация для скорости
- *
- */
-constexpr double velocity_var{0.25};
-/**
- * @brief Вариация для угла
- *
- */
-constexpr auto angle_var{deg_to_rad(3.6)};
+constexpr std::size_t _res_size{2};
 
-struct motion_point
+template <std::size_t _index, bool = _index<_res_size> class residual_iterator;
+
+template <std::size_t _index>
+class residual_iterator<_index, true>
 {
-    double i;
-    double a;
-    double di;
-    double da;
-};
-
-auto compute_motion_residuals(const forecast &f, const measuring_interval &inter)
-{
-    std::vector<motion_point> arr(inter.points_count());
-    auto begin = std::begin(inter);
-    auto end = std::end(inter);
-    for (size_t i{}; begin != end; ++begin)
-    {
-        auto &meas = begin.measurement();
-        const auto mp = f.point(meas.t);
-        double sph[3]{};
-        transform<abs_cs, sph_cs, grw_cs, ort_cs>::backward(mp.data(), sidereal_time(meas.t), sph);
-        auto &p = arr[i++];
-        p.i = sph[1];
-        p.a = sph[2];
-        p.di = meas.i - p.i;
-        p.da = meas.a - p.a;
-        double da = 2 * pi - p.da;
-        if (std::abs(da) < std::abs(p.da))
-            p.da = da;
-    }
-    return arr;
-}
-
-auto compute_basic(const vec6 &mp, time_h tn, const measuring_interval &inter)
-{
-    return compute_motion_residuals(make_forecast(mp, tn, inter.tk()), inter);
-}
-
-auto compute_extbasic(const vec6 &mp, time_h tn, measuring_interval const &inter, double s, double m)
-{
-    return compute_motion_residuals(make_forecast(mp, tn, inter.tk(), s, m), inter);
-}
-
-auto compute_extended(const vec6 &mp, time_h tn, const measuring_interval &inter, const rotator &r, const object_model &o)
-{
-    return compute_motion_residuals(make_forecast(mp, tn, inter.tk(), r, o), inter);
-}
-
-object_model make_plane(const round_plane &p)
-{
-    object_model obj;
-    obj.mass = p.mass;
-    obj.surface.resize(2);
-    for (auto &face : obj.surface)
-    {
-        face.refl = p.refl;
-        face.square = p.square;
-    }
-    obj.surface[0].norm = p.normal;
-    obj.surface[1].norm = -obj.surface[0].norm;
-    return obj;
-}
-
-//-------------------------------------------------------
-
-auto make_round_plane(double mass, double rsquare, double refl, const vec3 &normal)
-{
-    return round_plane{
-        .mass = mass,
-        .square = rsquare / refl,
-        .refl = refl,
-        .normal = normal,
-    };
-}
-
-//-----------------------------------------------------
-
-class basic_model_wrapper : public optimization_interface<6, 2>
-{
-    measuring_interval const &_inter;
-    time_h _tn;
+    math::vector const *_v;
+    std::size_t _offset;
 
 public:
-    basic_model_wrapper(measuring_interval const &inter, time_h tn) : _inter{inter}, _tn{tn} {}
-
-    std::size_t points_count() const override
+    residual_iterator(math::vector const &v, std::size_t offset) : _v{&v}, _offset{offset}
     {
-        return _inter.points_count();
     }
-
-    vec<6> variations() const override
+    residual_iterator(residual_iterator const &) = default;
+    residual_iterator &operator=(residual_iterator const &) = default;
+    residual_iterator &operator++()
     {
-        vec<6> v;
-        v[0] = v[1] = v[2] = position_var * 4;
-        v[3] = v[4] = v[5] = velocity_var;
-        return v;
+        _offset += _res_size;
+        return *this;
     }
-
-    void update(double &value, size_t index, double add) const override
+    double operator*() const
     {
-        value += add;
+        return (*_v)[_offset + _index];
     }
-
-    void residual(vec<6> const &v, array_view<2> *const r) const override
+    bool operator!=(residual_iterator const &other) const
     {
-        auto res = compute_basic(v, _tn, _inter);
-        for (std::size_t i{}; i < res.size(); ++i)
-        {
-            auto &p = res[i];
-            r[i][0] = p.di;
-            r[i][1] = p.da;
-        }
+        return _v != other._v || _offset != other._offset;
     }
 };
 
-class extbasic_model_wrapper : public optimization_interface<7, 2>
+std::ostream &operator<<(std::ostream &os, math::vector const &v)
 {
-    measuring_interval const &_inter;
-    time_h _tn;
-    double _mass;
+    for (std::size_t i{}; i < v.size(); ++i)
+    {
+        os << v[i] << ' ';
+    }
+    return os;
+}
+
+std::ostream &operator<<(std::ostream &os, math::iteration const &iter)
+{
+    os << "Итерация №" << iter.n << '\n';
+    os << "Ф-ция невязок " << math::rad_to_deg(iter.r) << '\n';
+    os << "Вектор параметров " << iter.v << '\n';
+    os << "Вектор поправок " << iter.dv << '\n';
+    return os;
+}
+
+void print_stat(std::ostream &os, char const *name, double mean, double std)
+{
+    os << name << " \t среднее значение " << math::rad_to_deg(mean) << "град \t СКО " << math::rad_to_deg(std) << "град\n";
+}
+
+void print_stat_info(std::ostream &os, math::iteration const &iter)
+{
+    double mean, std;
+    math::mean_std(mean, std, residual_iterator<0>(iter.rv, 0), residual_iterator<0>(iter.rv, iter.rv.size()));
+    print_stat(os, "Склонение:\t", mean, std);
+    math::mean_std(mean, std, residual_iterator<1>(iter.rv, 0), residual_iterator<1>(iter.rv, iter.rv.size()));
+    print_stat(os, "Восхождение:\t", mean, std);
+}
+
+class optimization_logger : public math::iterations_saver
+{
+    std::ostream &_os;
+    math::iteration _first, _last;
+    std::size_t _iter_index{};
 
 public:
-    extbasic_model_wrapper(measuring_interval const &inter, time_h tn, double m) : _inter{inter}, _tn{tn}, _mass{m} {}
-
-    std::size_t points_count() const override
+    optimization_logger(std::ostream &os) : _os{os}
     {
-        return _inter.points_count();
+        _os << std::fixed << std::chrono::system_clock::now() << " Начало записи протокола вычислений.\n\n";
     }
-
-    vec<7> variations() const override
+    ~optimization_logger()
     {
-        vec<7> v;
-        v[0] = v[1] = v[2] = position_var * 4;
-        v[3] = v[4] = v[5] = velocity_var;
-        v[6] = 1;
-        return v;
+        _os << "Статистические параметры невязок.\n";
+        _os << "На первой итерации\n";
+        print_stat_info(_os, _first);
+        _os << "На последней итерации (" << _last.n << ")\n";
+        print_stat_info(_os, _last);
+        _os << "\n\nОкончание записи протокола вычислений. " << std::chrono::system_clock::now();
     }
-
-    void update(double &value, size_t index, double add) const override
+    void save(math::iteration &&iter)
     {
-        value += add;
-        if (index == 6)
-            value = std::min(1e2, std::max(0.0, value));
-        if (index > 6)
-            throw std::out_of_range("Индекс параметра за пределами диапазона.");
-    }
-
-    void residual(vec<7> const &v, array_view<2> *const r) const override
-    {
-        auto res = compute_extbasic(v.subv<0, 6>(), _tn, _inter, v[6], _mass);
-        for (std::size_t i{}; i < res.size(); ++i)
+        _os << iter << '\n';
+        if (_iter_index == 0)
         {
-            auto &p = res[i];
-            r[i][0] = p.di;
-            r[i][1] = p.da;
+            _first = std::move(iter);
         }
+        else
+        {
+            _last = std::move(iter);
+        }
+        ++_iter_index;
     }
 };
 
-class extended_model_wrapper : public optimization_interface<7, 2>
+class model_measurer : public math::measurer
 {
-    measuring_interval const &_inter;
-    time_h _tn;
-    rotator const &_rot;
-    round_plane const &_plane;
+    measuring_interval _inter;
+    time_type _t;
 
 public:
-    extended_model_wrapper(measuring_interval const &inter, time_h tn, rotator const &r, round_plane const &p) : _inter{inter}, _tn{tn}, _rot{r}, _plane{p} {}
-
-    std::size_t points_count() const override
+    model_measurer(measuring_interval const &inter, time_type t) : _inter{inter}, _t{t} {}
+    math::vector get_residuals(math::vector const &v) const override
     {
-        return _inter.points_count();
-    }
-
-    vec<7> variations() const override
-    {
-        vec<7> v;
-        v[0] = v[1] = v[2] = position_var * 4;
-        v[3] = v[4] = v[5] = velocity_var;
-        v[6] = 1;
-        return v;
-    }
-
-    void update(double &value, size_t index, double add) const override
-    {
-        value += add;
-        if (index == 6)
-            value = std::min(1e2, std::max(0.0, value));
-        if (index > 6)
-            throw std::out_of_range("Индекс параметра за пределами диапазона.");
-    }
-
-    void residual(vec<7> const &v, array_view<2> *const r) const override
-    {
-        auto p = _plane;
-        p.square = v[6];
-        auto res = compute_extended(v.subv<0, 6>(), _tn, _inter, _rot, make_plane(p));
-        for (std::size_t i{}; i < res.size(); ++i)
+        auto f = _make_forecast(v);
+        math::vector rv(_inter.points_count() * 2);
+        auto begin = _inter.begin();
+        auto end = _inter.end();
+        for (std::size_t i{}; begin != end; ++begin)
         {
-            auto &p = res[i];
-            r[i][0] = p.di;
-            r[i][1] = p.da;
+            auto &meas = begin.measurement();
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(meas.t.time_since_epoch()).count();
+            auto p = f.point(ms);
+            double sph[3];
+            transform<abs_cs, sph_cs, grw_cs, ort_cs>::backward(p.data(), sidereal_time(ms / 1000), sph);
+            rv[i++] = meas.i - sph[1];
+            double da = meas.a - sph[2];
+            double ra = 2 * math::pi - da;
+            rv[i++] = std::abs(da) < std::abs(ra) ? da : ra;
         }
+        return rv;
+    }
+
+private:
+    forecast _make_forecast(math::vector const &in) const
+    {
+        math::vec6 v;
+        std::copy(in.begin(), in.end(), v.data());
+        return make_forecast(v, _t, _inter.tk());
     }
 };
 
-constexpr std::size_t iterations{30};
-
-#include <fstream>
-#include <iomanip>
-
-void print(forecast const &f)
+class parameters_variator : public math::variator
 {
-    std::ofstream fout{"forecast.txt"};
-    if (!fout.is_open())
-        throw_runtime_error("Failed to open file.");
-    fout << std::fixed << std::setprecision(16);
-    fout << "Number of points: " << f._points.size() << std::endl;
-    for (std::size_t n{}; n < f._points.size(); ++n)
+public:
+    math::vector get_variations() const override
     {
-        auto &p = f._points[n];
-        fout << "№ " << n + 1 << ' ';
-        fout << p.t << ' ';
-        for (std::size_t i{}; i < p.v.size(); ++i)
-        {
-            fout << p.v[i] << ' ';
-        }
-        fout << std::endl;
+        return math::vector{
+            25,
+            25,
+            25,
+            .25,
+            .25,
+            .25,
+        };
+    }
+};
+
+math::vector make_vector(orbit_data const &d)
+{
+    math::vector v(6);
+    for (std::size_t i{}; i < v.size(); ++i)
+    {
+        v[i] = d.v[i];
+    }
+    return v;
+}
+
+void test_forecast(measuring_interval const &inter, orbit_data const &d, std::ostream &os)
+{
+    math::vec6 v;
+    std::memcpy(v.data(), d.v, sizeof(d.v));
+    auto f = make_forecast(v, d.t, inter.tk());
+    for (auto &p : f._points)
+    {
+        os << "t = " << time_type(std::chrono::milliseconds(p.t)) << " v = ";
+        std::copy(p.v.data(), p.v.data() + p.v.size(), std::ostream_iterator<double>(os, " "));
+        os << '\n';
     }
 }
 
-void estimate_model(measuring_interval const &inter, time_h t, basic_info &info)
+void run_optimization(measuring_interval const &inter, orbit_data &data, std::ostream &os)
 {
-    // print(make_forecast(vec6{-4915330.0640170909, 41605236.594821557, -4927565.8685854254, 25.219820391826797, -52.633591322296112, -473.30074525367752}, t, inter.tk()));
-    // throw_runtime_error("Stop");
-    basic_model_wrapper mwb(inter, t);
-    levmarq(info.v, mwb, &info.l, 1e-3, iterations);
-}
-
-void estimate_model(measuring_interval const &inter, time_h t, round_plane const &p, extbasic_info &info)
-{
-    vec<7> v;
-    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), v.data());
-    v[6] = (1 + p.refl) * p.square;
-    extbasic_model_wrapper mw(inter, t, p.mass);
-    levmarq(v, mw, &info.l, 1e-3, iterations);
-    std::copy(v.data(), end, info.v.data());
-    info.s = v[6];
-}
-
-void estimate_model(measuring_interval const &inter, time_h t, round_plane const &p, rotator const &r, extended_info &info)
-{
-    vec<7> v;
-    auto end = std::copy(info.v.data(), info.v.data() + info.v.size(), v.data());
-    v[6] = p.square;
-    extended_model_wrapper mw(inter, t, r, p);
-    levmarq(v, mw, &info.l, 1e-3, iterations);
-    std::copy(v.data(), end, info.v.data());
-    info.s = v[6];
+    math::vector v = make_vector(data);
+    model_measurer meas{inter, data.t};
+    parameters_variator var;
+    optimization_logger log{os};
+    math::levmarq(v, meas, var, nullptr, &log, 1e-5);
 }

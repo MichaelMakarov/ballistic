@@ -2,6 +2,12 @@
 #include <vector>
 
 /**
+ * @brief Кол-во секунд, прошедщих с начала 1970 г
+ *
+ */
+using time_t = int64_t;
+
+/**
  * @brief Коэф-ты гармоники потенциала
  *
  */
@@ -131,7 +137,7 @@ struct solar_model
 	 * @param ort вектор в АСК (x, y, z) в м
 	 * @param sph вектор в АСК (радиус [м], склонение [рад], прямое восхождение [рад])
 	 */
-	static void coordinates(int64_t t, double *ort = nullptr, double *sph = nullptr);
+	static void coordinates(time_t t, double *ort = nullptr, double *sph = nullptr);
 	/**
 	 * @brief Гравитационная постоянная
 	 */
@@ -166,7 +172,7 @@ struct lunar_model
 	 * @param t время с начала 1970 года (сек)
 	 * @param out вектор в АСК (x, y, z)
 	 */
-	static void coordinates(int64_t t, double *const out);
+	static void coordinates(time_t t, double *const out);
 	/**
 	 * @brief Гравитационная постоянная
 	 */
@@ -186,10 +192,10 @@ void mass_acceleration(const double *p, const double *m, double mu, double *a);
 /**
  * @brief Звездное время
  *
- * @param t время с начала 1970 года (мс)
+ * @param t время с начала 1970 года (сек)
  * @return звёздное время в рад
  */
-double sidereal_time(int64_t t);
+double sidereal_time(time_t t);
 
 /**
  * @brief Вычисление высоты над земным эллипсоидом

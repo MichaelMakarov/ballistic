@@ -13,8 +13,9 @@ rotator::rotator(std::vector<rotation_measurement>::const_iterator begin,
     _delta = ((end - 1)->t - begin->t) / (_count - 1);
 }
 
-math::quaternion rotator::get_quaternion(time_point_t t) const
+math::quaternion rotator::get_quaternion(time_t tt) const
 {
+    auto t = std::chrono::time_point_cast<std::chrono::milliseconds>(std::chrono::system_clock::from_time_t(tt));
     math::quaternion q;
     if (t >= _begin->t && t <= _end->t)
     {

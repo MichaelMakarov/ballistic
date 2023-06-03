@@ -1,8 +1,8 @@
 #pragma once
+
 #include <chrono>
 
-using clock_type = std::chrono::system_clock;
-using time_point_t = clock_type::time_point;
+using time_type = std::chrono::sys_time<std::chrono::milliseconds>;
 
 /**
  * @brief Вычисление номера дня в году.
@@ -30,11 +30,11 @@ enum class parse_format
  * @return time_point_t
  */
 template <parse_format fmt>
-time_point_t parse_from_str(char const *str);
+time_type parse_from_str(char const *str);
 /**
  * @brief Запись в поток.
  *
  * @param os поток
  * @param t время
  */
-void write_to_stream(std::ostream &os, time_point_t t);
+void write_to_stream(std::ostream &os, time_type t);

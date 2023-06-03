@@ -23,7 +23,6 @@ add_executable(
     src/atmosphere.cpp
     src/spaceweather.cpp
     src/csvutility.cpp
-    src/timeutility.cpp
     src/geometry.cpp
     src/rotator.cpp
 )

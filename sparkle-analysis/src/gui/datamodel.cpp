@@ -3,7 +3,6 @@
 #include <gui.hpp>
 #include <observation.hpp>
 #include <maths.hpp>
-#include <formatting.hpp>
 #include <qheaderview.h>
 #include <qabstractitemmodel.h>
 using namespace math;
@@ -45,7 +44,7 @@ QString data_element(const orbit_data &obs, int col)
     switch (col)
     {
     case 0:
-        return QString::fromStdString(format("%", obs.t));
+        return QString::fromStdString(format("{}", obs.t));
     case 1:
         return number_to_str(obs.v[0]);
     case 2:
@@ -204,7 +203,7 @@ public:
         switch (index)
         {
         case 0:
-            return QString::fromStdString(_data.id);
+            return QString::number(_data.id);
         case 1:
             return number_to_str(_data.o[0]);
         case 2:
@@ -234,7 +233,7 @@ public:
         switch (index)
         {
         case 4:
-            return QString::fromStdString(format("%", _data.t));
+            return QString::fromStdString(format("{}", _data.t));
         case 5:
             return number_to_str(_data.m);
         case 6:

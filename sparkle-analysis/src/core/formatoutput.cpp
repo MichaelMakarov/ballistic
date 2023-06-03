@@ -1,55 +1,7 @@
 #include <formatoutput.hpp>
 #include <transform.hpp>
-#include <fstream>
 #include <functional>
 #include <iomanip>
-
-//----------------------------------------------//
-//      открытие файлов на чтение и запись      //
-//----------------------------------------------//
-
-template <typename>
-struct open_file_error;
-
-template <>
-struct open_file_error<std::ofstream>
-{
-    static std::string message(const char *filename)
-    {
-        using namespace std::string_literals;
-        return "Не удалось открыть для записи файл "s + filename;
-    }
-};
-template <>
-struct open_file_error<std::ifstream>
-{
-    static std::string message(const char *filename)
-    {
-        using namespace std::string_literals;
-        return "Не удалось открыть для чтения файл "s + filename;
-    }
-};
-
-template <typename F>
-F open_file(const char *filename)
-{
-    F file(filename);
-    if (!file.is_open())
-    {
-        throw std::runtime_error(open_file_error<F>::message(filename));
-    }
-    return file;
-}
-
-std::ifstream open_infile(std::string_view filename)
-{
-    return open_file<std::ifstream>(filename.data());
-}
-
-std::ofstream open_outfile(std::string_view filename)
-{
-    return open_file<std::ofstream>(filename.data());
-}
 
 //------------------------------------------//
 //          форматирование структур         //

@@ -1,7 +1,7 @@
 #include <spaceweather.hpp>
-#include <fileutility.hpp>
+#include <fileutils.hpp>
 #include <csvutility.hpp>
-#include <timeutility.hpp>
+#include <times.hpp>
 #include <vector>
 #include <filesystem>
 #include <format>
@@ -28,8 +28,8 @@ spaceweather_node read_spaceweather(std::string const &str, std::size_t row)
     end = end_column(str, begin);
     try
     {
-        time_point_t t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin).data());
-        node.t = clock_type::to_time_t(t);
+        time_type t = parse_from_str<parse_format::short_format>(str.substr(begin, end - begin).data());
+        node.t = std::chrono::system_clock::to_time_t(t);
     }
     catch (const std::exception &ex)
     {
@@ -120,9 +120,9 @@ public:
         if (_tn > t || t > _tk)
         {
             throw std::out_of_range(std::format("Time {} of the request is out of range of space weather time interval {} - {}.",
-                                                clock_type::from_time_t(t),
-                                                clock_type::from_time_t(_tn),
-                                                clock_type::from_time_t(_tk)));
+                                                std::chrono::system_clock::from_time_t(t),
+                                                std::chrono::system_clock::from_time_t(_tn),
+                                                std::chrono::system_clock::from_time_t(_tk)));
         }
         std::size_t index = (t - _tn) / day;
         auto &node = _nodes[index];

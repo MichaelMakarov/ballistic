@@ -1,4 +1,4 @@
-#include <timeutility.hpp>
+#include <times.hpp>
 #include <sstream>
 #include <stdexcept>
 #include <format>
@@ -21,9 +21,9 @@ unsigned day_of_year(time_t t)
 constexpr auto date_fmt{"%F"};
 constexpr auto datetime_fmt{"%F_%T"};
 
-time_point_t parse_by_format(char const *str, char const *fmt)
+time_type parse_by_format(char const *str, char const *fmt)
 {
-    time_point_t t;
+    time_type t;
     std::stringstream sstr{str};
     if (!std::chrono::from_stream(sstr, fmt, t))
     {
@@ -33,18 +33,18 @@ time_point_t parse_by_format(char const *str, char const *fmt)
 }
 
 template <>
-time_point_t parse_from_str<parse_format::short_format>(char const *str)
+time_type parse_from_str<parse_format::short_format>(char const *str)
 {
     return parse_by_format(str, date_fmt);
 }
 
 template <>
-time_point_t parse_from_str<parse_format::long_format>(char const *str)
+time_type parse_from_str<parse_format::long_format>(char const *str)
 {
     return parse_by_format(str, datetime_fmt);
 }
 
-void write_to_stream(std::ostream &os, time_point_t t)
+void write_to_stream(std::ostream &os, time_type t)
 {
     std::format_to(std::ostream_iterator<char>{os}, "{:%F_%T}", t);
 }

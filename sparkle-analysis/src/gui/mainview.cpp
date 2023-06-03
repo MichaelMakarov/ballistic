@@ -4,7 +4,6 @@
 #include <pathview.hpp>
 #include <mainmodel.hpp>
 #include <datamodel.hpp>
-#include <presenter.hpp>
 #include <qlayout.h>
 #include <qstatusbar.h>
 #include <qgroupbox.h>
@@ -14,28 +13,24 @@
 #include <qcheckbox.h>
 #include <qfiledialog.h>
 
+const char *txtfilter{"Текстовый файл (*.txt)"};
+const char *jsonfilter{"Json файл (*.json)"};
 
-const char* txtfilter{ "Текстовый файл (*.txt)" };
-const char* jsonfilter{ "Json файл (*.json)" };
+constexpr QSize min_size{400, 200};
 
-constexpr QSize min_size{ 400, 200 };
-
-
-mainview::mainview(QWidget* const parent) : QMainWindow(parent)
+mainview::mainview(QWidget *const parent) : QMainWindow(parent)
 {
     setWindowTitle("Окно уточнения параметров движения и вращения");
     // класс для расчётов
     _model = new computational_model(this);
-    
+
     auto grid = make_layout<QGridLayout>();
     setCentralWidget(make_widget(grid));
     // 3 строки и 3 столбца
     grid->setRowStretch(0, 0);
     grid->setRowStretch(1, 1);
-    grid->setRowStretch(2, 1);
     grid->setColumnStretch(0, 1);
     grid->setColumnStretch(1, 1);
-    grid->setColumnStretch(2, 0);
 
     // компоновщик для всех настроек
     auto layout = make_layout<QHBoxLayout>();
@@ -51,14 +46,28 @@ mainview::mainview(QWidget* const parent) : QMainWindow(parent)
     path_layout->addWidget(make_label(1), 0, 0);
     path_layout->addWidget(make_label(2), 1, 0);
     path_layout->addWidget(make_label(3), 2, 0);
-    path_layout->addWidget(make_label(4), 3, 0);  
-    path_layout->addWidget(_gpt = make_pathview(txtfilter, "Файл гармоник ГПЗ:", {}, [](const QString& path){ settings.gptpath = path.toStdString(); }), 0, 1);
-    path_layout->addWidget(_tle = make_pathview(txtfilter, "Файл данных TLE:", {}, [](const QString& path){ settings.tlepath = path.toStdString(); }), 1, 1);
-    path_layout->addWidget(_obs = make_pathview(jsonfilter, "Файл обсерваторий:", {}, [](const QString& path){ settings.obspath = path.toStdString(); }), 2, 1);
-    path_layout->addWidget(_mes = make_pathview(jsonfilter, "Файл измер. блеска:", {}, [](const QString& path){ settings.mespath = path.toStdString(); }), 3, 1);
-    path_layout->addWidget(make_apply_button("Загрузить гармоники ГПЗ", [this](bool){ on_load_gpt_clicked(); }), 0, 2);
-	path_layout->addWidget(make_apply_button("Загрузить данные TLE", [this](bool){ on_load_tle_clicked(); }), 1, 2);
-	path_layout->addWidget(make_apply_button("Загрузить данные измерений", [this](bool){ on_load_measurements_clicked(); }), 2, 2, 2, 1);
+    path_layout->addWidget(make_label(4), 3, 0);
+    path_layout->addWidget(_gpt = make_pathview(txtfilter, "Файл гармоник ГПЗ:", {}, [](const QString &path)
+                                                { settings.gptpath = path.toStdString(); }),
+                           0, 1);
+    path_layout->addWidget(_tle = make_pathview(txtfilter, "Файл данных TLE:", {}, [](const QString &path)
+                                                { settings.tlepath = path.toStdString(); }),
+                           1, 1);
+    path_layout->addWidget(_obs = make_pathview(jsonfilter, "Файл обсерваторий:", {}, [](const QString &path)
+                                                { settings.obspath = path.toStdString(); }),
+                           2, 1);
+    path_layout->addWidget(_mes = make_pathview(jsonfilter, "Файл измер. блеска:", {}, [](const QString &path)
+                                                { settings.mespath = path.toStdString(); }),
+                           3, 1);
+    path_layout->addWidget(make_apply_button("Загрузить гармоники ГПЗ", [this](bool)
+                                             { on_load_gpt_clicked(); }),
+                           0, 2);
+    path_layout->addWidget(make_apply_button("Загрузить данные TLE", [this](bool)
+                                             { on_load_tle_clicked(); }),
+                           1, 2);
+    path_layout->addWidget(make_apply_button("Загрузить данные измерений", [this](bool)
+                                             { on_load_measurements_clicked(); }),
+                           2, 2, 2, 1);
     // компоновщик для настроек
     auto set_layout = make_layout<QHBoxLayout>();
     layout->addWidget(make_groupbox("Настройки", set_layout), 0);
@@ -68,18 +77,30 @@ mainview::mainview(QWidget* const parent) : QMainWindow(parent)
     obj_layout->addWidget(make_label("Масса (кг) = "), 0, 0, Qt::AlignmentFlag::AlignRight);
     obj_layout->addWidget(make_label("S пов-ти (м^2) = "), 1, 0, Qt::AlignmentFlag::AlignRight);
     obj_layout->addWidget(make_label("К-т отраж. = "), 2, 0, Qt::AlignmentFlag::AlignRight);
-    obj_layout->addWidget(_mass = make_double_spinbox(settings.object.mass, 1, 1e10, 1, [](double val){ settings.object.mass = val; }), 0, 1);
-    obj_layout->addWidget(_square = make_double_spinbox(settings.object.square, 0, 1e3, 1, [](double val){ settings.object.square = val; }), 1, 1);
-    obj_layout->addWidget(_refl = make_double_spinbox(settings.object.refl, 0, 1, 1e-1, [](double val){ settings.object.refl = val; }), 2, 1);
+    obj_layout->addWidget(_mass = make_double_spinbox(settings.object.mass, 1, 1e10, 1, [](double val)
+                                                      { settings.object.mass = val; }),
+                          0, 1);
+    obj_layout->addWidget(_square = make_double_spinbox(settings.object.square, 0, 1e3, 1, [](double val)
+                                                        { settings.object.square = val; }),
+                          1, 1);
+    obj_layout->addWidget(_refl = make_double_spinbox(settings.object.refl, 0, 1, 1e-1, [](double val)
+                                                      { settings.object.refl = val; }),
+                          2, 1);
     // компоновщик для настроек вычислений
     auto comp_layout = make_layout<QGridLayout>();
     set_layout->addWidget(make_groupbox("Параметры расчёта", comp_layout));
     comp_layout->addWidget(make_label("Выбранный ТЛЕ"), 0, 0, Qt::AlignmentFlag::AlignRight);
     comp_layout->addWidget(make_label("Мерный интервал, сут"), 1, 0, Qt::AlignmentFlag::AlignRight);
     comp_layout->addWidget(make_checkbox("Логирование", _logreq), 2, 0, Qt::AlignmentFlag::AlignRight);
-    comp_layout->addWidget(_index = make_spinbox(0, 0, 0, 1, [this](int val){ _model->select_tle(val); }), 0, 1);
-    comp_layout->addWidget(_inter = make_double_spinbox(1, 0, 1e10, 1, [this](double val){ _model->select_interval(val); }), 1, 1);
-    comp_layout->addWidget(_comp = make_button("Рассчитать", [this](bool){ on_compute_clicked(); }), 2, 1, Qt::AlignmentFlag::AlignLeft);
+    comp_layout->addWidget(_index = make_spinbox(0, 0, 0, 1, [this](int val)
+                                                 { _model->select_tle(val); }),
+                           0, 1);
+    comp_layout->addWidget(_inter = make_double_spinbox(1, 0, 1e10, 1, [this](double val)
+                                                        { _model->select_interval(val); }),
+                           1, 1);
+    comp_layout->addWidget(_comp = make_button("Рассчитать", [this](bool)
+                                               { on_compute_clicked(); }),
+                           2, 1, Qt::AlignmentFlag::AlignLeft);
     // таблица
     auto table = new tle_tableview(_model, this);
     table->setMinimumSize(min_size);
@@ -92,14 +113,6 @@ mainview::mainview(QWidget* const parent) : QMainWindow(parent)
     layout = make_layout<QHBoxLayout>();
     layout->addWidget(tree);
     grid->addWidget(make_groupbox("Измерения блеска", layout), 1, 1);
-    // представление результатов
-    auto presenter = new computation_presenter(_model, this);
-    presenter->setMinimumWidth(300);
-    grid->addWidget(presenter, 0, 2, 3, 1);
-    // графики
-    auto graphic = new graphics_view(_model, this);
-    graphic->setMinimumHeight(200);
-    grid->addWidget(graphic, 2, 0, 1, 2);
 
     connect(_model, &computational_model::tle_data_loaded, this, &mainview::on_tle_loaded);
     connect(this, &mainview::settings_loaded, this, &mainview::on_settings_loaded);
@@ -107,33 +120,42 @@ mainview::mainview(QWidget* const parent) : QMainWindow(parent)
 
 void mainview::on_load_gpt_clicked() const
 {
-    try {
+    try
+    {
         show_info("Происходит загрузка гармоник потенциала Земли...");
         _model->read_gpt();
         show_info("Гармоники потенциала Земли загружены из файла.");
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         show_error(error.what());
     }
 }
 
 void mainview::on_load_tle_clicked() const
 {
-    try {
+    try
+    {
         show_info("Происходит загрузка данных TLE...");
         _model->read_tle();
         show_info("TLE загружены из файла.");
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         show_error(error.what());
     }
 }
 
 void mainview::on_load_measurements_clicked() const
 {
-    try {
+    try
+    {
         show_info("Происходит загрузка измерений блеска...");
         _model->read_measurements();
         show_info("Измерения блеска КА загружены из файла.");
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         show_error(error.what());
     }
 }
@@ -143,16 +165,21 @@ void mainview::on_compute_clicked()
     auto button = _comp;
     button->setEnabled(false);
     QString filename;
-    try {
-        if (_logreq) {
-            filename = QFileDialog::getSaveFileName( this, "Выбор файла логирования", {}, txtfilter );
-            if (filename.isEmpty()) {
+    try
+    {
+        if (_logreq)
+        {
+            filename = QFileDialog::getSaveFileName(this, "Выбор файла логирования", {}, "(*.log)");
+            if (filename.isEmpty())
+            {
                 throw std::runtime_error("Файл логирования не выбран.");
             }
         }
         _model->compute(filename.toStdString());
         show_info("Расчёт завершён.");
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         show_error(error.what());
     }
     button->setEnabled(true);
@@ -178,41 +205,49 @@ void mainview::on_settings_loaded() const
     on_load_measurements_clicked();
 }
 
-void mainview::show_message(const QString& msg, const QString& style) const
+void mainview::show_message(const QString &msg, const QString &style) const
 {
     auto bar = statusBar();
     bar->setStyleSheet(style);
     bar->showMessage(msg);
 }
 
-void mainview::show_error(const QString& msg) const
+void mainview::show_error(const QString &msg) const
 {
     show_message(msg, "color: red");
 }
 
-void mainview::show_info(const QString& msg) const
+void mainview::show_info(const QString &msg) const
 {
     show_message(msg, "color: blue");
 }
 
-void mainview::showEvent(QShowEvent* event)
+project_settings read_settings();
+void write_settings(project_settings const &);
+
+void mainview::showEvent(QShowEvent *event)
 {
     QMainWindow::showEvent(event);
-    void read_settings();
-    try {
-        read_settings();
+    try
+    {
+        settings = read_settings();
         emit settings_loaded();
         show_info("Настройки приложения восстановлены.");
-    } catch (const std::exception& error) {
+    }
+    catch (const std::exception &error)
+    {
         show_error(QString("Не удалось восстановить настройки приложения. ") + error.what());
     }
 }
 
-void mainview::closeEvent(QCloseEvent* event)
+void mainview::closeEvent(QCloseEvent *event)
 {
-    void write_settings();
-    try {
-        write_settings();
-    } catch (const std::exception&) {}
+    try
+    {
+        write_settings(settings);
+    }
+    catch (const std::exception &)
+    {
+    }
     QMainWindow::closeEvent(event);
 }

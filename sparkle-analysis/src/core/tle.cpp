@@ -2,6 +2,7 @@
 #include <maths.hpp>
 #include <ball.hpp>
 #include <transform.hpp>
+#include <fileutils.hpp>
 #include <SGP4.h>
 #include <algorithm>
 #include <fstream>
@@ -22,19 +23,23 @@ elsetrec read_elsetrec(const char *first, const char *second)
 orbit_data elsetrec_to_observation(elsetrec trec)
 {
     orbit_data obs;
-    int ta[5];
+    int year, month, day, hour, minute;
     double sec;
-    SGP4Funcs::invjday_SGP4(
-        trec.jdsatepoch, trec.jdsatepochF,
-        ta[0], ta[1], ta[2], ta[3], ta[4], sec);
-    double ms = std::modf(sec, &sec) * 1e3;
-    obs.t = make_time(calendar{ta[0], ta[1], ta[2], ta[3], ta[4], int(sec), int(ms)});
+    SGP4Funcs::invjday_SGP4(trec.jdsatepoch, trec.jdsatepochF, year, month, day, hour, minute, sec);
+    std::chrono::year_month_day ymd{
+        std::chrono::year(year),
+        std::chrono::month(month),
+        std::chrono::day(day)};
+    obs.t = static_cast<std::chrono::sys_days>(ymd);
+    obs.t += std::chrono::hours(hour);
+    obs.t += std::chrono::minutes(minute);
+    obs.t += std::chrono::milliseconds(static_cast<int>(sec * 1e3));
     double buf[6]{};
     if (!SGP4Funcs::sgp4(trec, 0, buf, buf + 3))
     {
         throw std::runtime_error("не удалось выполнить процедуру приведения tle-параметров к вектору состояния по модели SGP4.");
     }
-    auto st = sidereal_time(obs.t);
+    auto st = sidereal_time(std::chrono::system_clock::to_time_t(obs.t));
     transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, egm::angv, obs.v);
     for (double &e : obs.v)
         e *= 1e3; // приведение к м и м/с
@@ -55,16 +60,13 @@ std::istream &operator>>(std::istream &in, tle &t)
     return in;
 }
 
-std::ifstream open_infile(std::string_view filename);
-
-auto load_orbit_data(const std::string_view filename) -> std::vector<orbit_data>
+std::vector<orbit_data> load_orbit_data(const std::string_view filename)
 {
     auto fin = open_infile(filename);
     std::vector<orbit_data> list;
-    std::transform(
-        std::istream_iterator<tle>{fin}, std::istream_iterator<tle>{}, std::back_inserter(list),
-        [](const tle &t)
-        { return elsetrec_to_observation(read_elsetrec(t.first.data(), t.second.data())); });
+    std::transform(std::istream_iterator<tle>{fin}, std::istream_iterator<tle>{}, std::back_inserter(list),
+                   [](const tle &t)
+                   { return elsetrec_to_observation(read_elsetrec(t.first.data(), t.second.data())); });
     std::sort(std::begin(list), std::end(list), [](auto &left, auto &right)
               { return left.t < right.t; });
     return list;

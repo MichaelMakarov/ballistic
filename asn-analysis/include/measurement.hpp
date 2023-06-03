@@ -1,5 +1,5 @@
 #pragma once
-#include <timeutility.hpp>
+#include <times.hpp>
 #include <maths.hpp>
 
 /**
@@ -8,7 +8,7 @@
  */
 struct motion_measurement
 {
-    time_point_t t;
+    time_type t;
     double v[6];
 };
 
@@ -18,6 +18,6 @@ struct motion_measurement
  */
 struct rotation_measurement
 {
-    time_point_t t;
+    time_type t;
     math::quaternion q;
 };

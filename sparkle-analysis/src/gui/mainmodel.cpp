@@ -1,118 +1,23 @@
 #include <mainmodel.hpp>
-#include <computation.hpp>
-#include <formatoutput.hpp>
-#include <formatting.hpp>
-#include <motion.hpp>
-#include <rotation.hpp>
+#include <interval.hpp>
 #include <settings.hpp>
+#include <fileutils.hpp>
+#include <maths.hpp>
 #include <ball.hpp>
-#include <fstream>
+#include <format>
 
-std::ofstream open_outfile(const std::string_view);
+using days_ratio_t = std::ratio_multiply<std::ratio<24>, std::ratio<3600>>;
 
-/**
- * @brief Настройки вычисления.
- */
-struct settings_context
+void run_optimization(measuring_interval const &inter, orbit_data &data, std::ostream &os);
+
+bool cmp_to_be_earlier(const observation_seance &elem, time_type t)
 {
-    project_settings prj{};
-    computational_output out;
-    double inter{};
-    size_t tle{};
-    size_t stage{};
-};
-
-bool operator==(const object_info &left, const object_info &right)
-{
-    return left.mass == right.mass;
+    return elem.m.front().t < t;
 }
 
-bool operator==(const project_settings &left, const project_settings &right)
+bool cmp_to_be_later(time_type t, const observation_seance &elem)
 {
-    bool flag{true};
-    flag &= left.gptpath == right.gptpath;
-    flag &= left.mespath == right.mespath;
-    flag &= left.obspath == right.obspath;
-    flag &= left.tlepath == right.tlepath;
-    flag &= left.object == right.object;
-    return flag;
-}
-
-bool operator==(const settings_context &left, const settings_context &right)
-{
-    bool flag{true};
-    flag &= left.inter == right.inter;
-    flag &= left.tle == right.tle;
-    flag &= left.prj == right.prj;
-    return flag;
-}
-
-class context_binding
-{
-    settings_context *_ctx;
-    std::string_view _filename;
-
-public:
-    context_binding(settings_context &ctx, std::string_view filename) : _ctx{&ctx}, _filename{filename} {}
-    context_binding(const context_binding &) noexcept = default;
-    context_binding &operator=(const context_binding &) noexcept = default;
-    ~context_binding() noexcept(false)
-    {
-        using namespace std::string_literals;
-        if (_filename.empty())
-            return;
-        try
-        {
-            auto fout = open_outfile(_filename);
-            print_output(fout, _ctx->out, true);
-        }
-        catch (const std::exception &ex)
-        {
-            throw std::runtime_error("При сохранении результатов в файл возникла ошибка. "s + ex.what());
-        }
-    }
-    computational_output &output() const { return _ctx->out; }
-    size_t &stage() const { return _ctx->stage; }
-};
-
-/**
- * @brief Объект для хранения контекста выполнения
- */
-class computational_context
-{
-    /**
-     * @brief Список всех контекстов вычисления.
-     */
-    std::list<settings_context> contexts;
-
-public:
-    context_binding bind(double inter, size_t tle, std::string_view filename)
-    {
-        settings_context ctx{
-            .prj = settings,
-            .inter = inter,
-            .tle = tle};
-        auto iter = std::ranges::find(contexts, ctx);
-        if (iter != std::ranges::end(contexts))
-        {
-            return context_binding(*iter, filename);
-        }
-        else
-        {
-            contexts.push_back(ctx);
-            return context_binding(contexts.back(), filename);
-        }
-    }
-};
-
-bool cmp_to_be_earlier(const observation_seance &elem, time_h ref)
-{
-    return ref > elem.m.front().t;
-}
-
-bool cmp_to_be_later(time_h ref, const observation_seance &elem)
-{
-    return ref < elem.m.back().t;
+    return t < elem.m.back().t;
 }
 
 class ballistic_computer
@@ -136,16 +41,15 @@ public:
      * @param tle_index индекс опорного ТЛЕ
      * @param interval длина мерного интервала в сек
      */
-    void compute(computational_output &output, size_t tle_index, int64_t interval)
+    void compute(size_t tle_index, double days, std::ostream &os)
     {
         verify();
         // начальные условия из ТЛЕ
-        output.refer = std::make_shared<orbit_data>();
-        *output.refer = tles.at(tle_index);
+        orbit_data tle = tles.at(tle_index);
         // начальный момент времени
-        auto tn = output.refer->t;
+        auto tn = tle.t;
         // конечный момент времени
-        auto tk = tn + interval;
+        auto tk = tn + std::chrono::duration_cast<time_type::duration>(std::chrono::duration<double, days_ratio_t>(days));
         // начальный сеанс на мерном инетрвале
         auto begin = std::lower_bound(std::begin(seances), std::end(seances), tn, &cmp_to_be_earlier);
         // конечный сеанс
@@ -156,49 +60,9 @@ public:
         size_t number = inter.points_count();
         if (number <= 7)
         {
-            throw_runtime_error("Недостаточное кол-во измерений % на интервале % - %.", number, tn, tk);
+            throw std::runtime_error(std::format("Недостаточное кол-во измерений {} на интервале {} - {}.", number, tn, tk));
         }
-        // мерный интервал
-        output.inter = std::make_shared<measuring_interval>(inter);
-        auto func = [&output, tn](std::size_t i)
-        {
-            if (i == 0)
-            {
-                // решение по базовой модели
-                output.basic = std::make_shared<basic_info>();
-                std::copy(output.refer->v, output.refer->v + 6, output.basic->v.data());
-                estimate_model(*output.inter, tn, *output.basic);
-            }
-            else if (i == 1)
-            {
-                round_plane plane{
-                    .mass = settings.object.mass,
-                    .square = settings.object.square,
-                    .refl = settings.object.refl};
-                output.extbasic = std::make_shared<extbasic_info>();
-                std::copy(output.refer->v, output.refer->v + 6, output.extbasic->v.data());
-                estimate_model(*output.inter, tn, plane, *output.extbasic);
-            }
-            else
-            {
-                // оценка параметров вращения
-                rotation_info info{};
-                estimate_rotation(*output.inter, output.refer->v, tn, info);
-                output.rotation = std::make_shared<rotation_info>();
-                *output.rotation = info;
-                // параметры диска
-                round_plane plane{
-                    .mass = settings.object.mass,
-                    .square = settings.object.square,
-                    .refl = settings.object.refl,
-                    .normal = output.rotation->n};
-                output.extended = std::make_shared<extended_info>();
-                std::copy(output.refer->v, output.refer->v + 6, output.extended->v.data());
-                // решение по модели с учетом вращения
-                estimate_model(*output.inter, tn, plane, output.rotation->r, *output.extended);
-            }
-        };
-        par::parallel_for(std::size_t{}, std::size_t{3}, func);
+        run_optimization(inter, tle, os);
     }
 
 private:
@@ -206,15 +70,15 @@ private:
     {
         if (egm::harmonics.empty())
         {
-            throw_runtime_error("Гармоники геопотенциала Земли не загружены.");
+            throw std::runtime_error("Гармоники геопотенциала Земли не загружены.");
         }
         if (tles.empty())
         {
-            throw_runtime_error("Данные TLE отсутствуют.");
+            throw std::runtime_error("Данные TLE отсутствуют.");
         }
         if (seances.empty())
         {
-            throw_runtime_error("Данные измерений отсутствуют.");
+            throw std::runtime_error("Данные измерений отсутствуют.");
         }
     }
 };
@@ -222,13 +86,11 @@ private:
 computational_model::computational_model(QObject *parent) : QObject(parent)
 {
     _computer = new ballistic_computer;
-    _context = new computational_context;
 }
 
 computational_model::~computational_model()
 {
     delete _computer;
-    delete _context;
 }
 
 std::istream &operator>>(std::istream &is, potential_harmonic &p)
@@ -236,19 +98,21 @@ std::istream &operator>>(std::istream &is, potential_harmonic &p)
     return is >> p.cos >> p.sin;
 }
 
-std::ifstream open_infile(const std::string_view filename);
-
 void computational_model::read_gpt() const
 {
     auto fin = open_infile(settings.gptpath);
     egm::read_harmonics(std::istream_iterator<potential_harmonic>{fin}, {});
 }
 
+std::vector<orbit_data> load_orbit_data(const std::string_view filename);
+
 void computational_model::read_tle() const
 {
     _computer->tles = load_orbit_data(settings.tlepath);
     emit tle_data_loaded();
 }
+
+std::vector<observation_seance> load_brightness_data(std::string_view obs_filename, std::string_view mes_filename);
 
 void computational_model::read_measurements() const
 {
@@ -288,28 +152,14 @@ int computational_model::seance_count() const
 
 void computational_model::compute(const std::string &filename) const
 {
-    using namespace std::string_literals;
-    std::exception_ptr exptr;
-    try
+    if (!filename.empty())
     {
-        auto binding = _context->bind(_interval, _index, filename);
-        try
-        {
-            _computer->compute(binding.output(), _index, static_cast<time_h>(_interval * ms_per_day));
-        }
-        catch (const std::exception &)
-        {
-            exptr = std::current_exception();
-        }
-        emit computation_performed(&binding.output());
+        auto fout = open_outfile(filename);
+        _computer->compute(static_cast<size_t>(_index), _interval, fout);
     }
-    catch (const std::exception &)
+    else
     {
-        // because destructor may throw exception
-        exptr = std::current_exception();
-    }
-    if (exptr)
-    {
-        std::rethrow_exception(exptr);
+        std::ostream os{nullptr};
+        _computer->compute(static_cast<size_t>(_index), _interval, os);
     }
 }

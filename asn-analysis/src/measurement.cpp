@@ -26,7 +26,7 @@ static std::size_t end_column(std::string const &str, std::size_t begin)
     return end_column(str, begin, ';');
 }
 
-std::vector<motion_measurement> read_motion_measurements_from_csv(std::string_view filename, time_point_t tn)
+std::vector<motion_measurement> read_motion_measurements_from_csv(std::string_view filename, time_type tn)
 {
     std::ifstream fin = open_infile(filename);
     std::string buf;
@@ -156,7 +156,7 @@ void write_motion_measurements_to_txt(std::string_view filename, std::vector<mot
     std::copy(std::begin(measurements), std::end(measurements), std::ostream_iterator<motion_measurement>{fout, "\n"});
 }
 
-std::vector<rotation_measurement> read_rotation_measurements_from_csv(std::string_view filepath, time_point_t reft)
+std::vector<rotation_measurement> read_rotation_measurements_from_csv(std::string_view filepath, time_type reft)
 {
     auto fin = open_infile(filepath);
     std::vector<rotation_measurement> measurements;
@@ -262,7 +262,6 @@ std::string make_local_txtname(std::string_view csvname)
 }
 
 #include <iostream>
-#include <timeutility.hpp>
 
 std::vector<motion_measurement> read_motion_measurements(std::string_view filename, std::string_view reftstr)
 {
@@ -275,7 +274,7 @@ std::vector<motion_measurement> read_motion_measurements(std::string_view filena
     else
     {
         std::cout << "Reading motion measurements from " << filename << " using reference time " << reftstr << std::endl;
-        time_point_t t = parse_from_str<parse_format::long_format>(reftstr.data());
+        time_type t = parse_from_str<parse_format::long_format>(reftstr.data());
         auto measurements = read_motion_measurements_from_csv(filename, t);
         write_motion_measurements_to_txt(txtname, measurements);
         return measurements;
@@ -293,7 +292,7 @@ std::vector<rotation_measurement> read_rotation_measurements(std::string_view fi
     else
     {
         std::cout << "Reading rotation measurements from " << filename << " using reference time " << reftstr << std::endl;
-        time_point_t t = parse_from_str<parse_format::long_format>(reftstr.data());
+        time_type t = parse_from_str<parse_format::long_format>(reftstr.data());
         auto measurements = read_rotation_measurements_from_csv(filename, t);
         write_rotation_measurements_to_txt(txtname, measurements);
         return measurements;

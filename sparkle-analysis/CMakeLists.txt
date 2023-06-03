@@ -15,13 +15,13 @@ set(
 	core_sources
 	src/core/json.cpp
 	src/core/SGP4.cpp
-	src/core/observation.cpp
+	src/core/tle.cpp
 	src/core/models.cpp
-	src/core/computation.cpp
+	src/core/interval.cpp
 	src/core/motion.cpp
-	src/core/rotation.cpp
+	# src/core/rotation.cpp
 	src/core/forecast.cpp
-	src/core/formatoutput.cpp	
+	# src/core/formatoutput.cpp	
 	src/core/settings.cpp
 )
 
@@ -35,8 +35,8 @@ set(
 	src/gui/mainmodel.cpp
 	include/gui/datamodel.hpp
 	src/gui/datamodel.cpp
-	include/gui/presenter.hpp
-	src/gui/presenter.cpp	
+	# include/gui/presenter.hpp
+	# src/gui/presenter.cpp	
 	include/gui/gui.hpp
 	src/gui/gui.cpp
     src/gui/guisrc.qrc
@@ -55,6 +55,6 @@ target_include_directories(
 )
 target_link_libraries(	
 	${PROJECT_NAME} 
-	ballistic jsonlib 
+	ballistic jsonlib libutility mathlib queue_manager
 	Qt5::Widgets Qt5::Charts 
 )
