@@ -4,7 +4,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(json_library)
 
 if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/yas/include)
-    message(STATUS "init ${CMAKE_CURRENT_SOURCE_DIR}/yas")
     update_submodule(yas --init)
 endif()
 
