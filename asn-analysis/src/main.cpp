@@ -5,6 +5,9 @@
 
 int main(int argc, char **argv)
 {
+#if defined WIN32
+    std::system("@chcp 65001");
+#endif
     watchtimer timer;
     figure_provider::initialize(argc, argv);
     try

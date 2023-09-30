@@ -5,12 +5,8 @@
 
 namespace math
 {
-    template <size_t size>
-    vec<size> operator*(vec<size> const &left, time_t right)
-    {
-        return left * static_cast<double>(right / 1000);
-    }
-
+    vec6 operator*(vec6 const &left, time_t right);
+    vec<42> operator*(vec<42> const &left, time_t right);
 }
 
 #include <integration.hpp>
@@ -24,4 +20,8 @@ using forecast = math::integrator<math::vec6, time_t, time_t>;
  * @param tk конечное время
  * @return forecast
  */
-forecast make_forecast(const math::vec6 &v, time_type tn, time_type tk);
+forecast make_forecast(const math::vec6 &v, time_type tn, time_type tk, double s);
+
+using forecast_var = math::integrator<math::vec<55>, time_t, time_t>;
+
+forecast_var make_forecast(math::vec<55> const &v, time_type tn, time_type tk, double s);

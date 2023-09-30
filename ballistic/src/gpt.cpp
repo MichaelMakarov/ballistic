@@ -10,7 +10,7 @@ namespace egm
 	std::vector<potential_harmonic> harmonics;
 }
 
-void mass_acceleration(const double *p, const double *m, double mu, double *a)
+void massforce(const double p[3], const double m[3], double mu, double a[3])
 {
 	double d[3];
 	double mlen{}, dlen{};
@@ -24,6 +24,41 @@ void mass_acceleration(const double *p, const double *m, double mu, double *a)
 	dlen = cube(std::sqrt(dlen));
 	for (size_t i{}; i < 3; ++i)
 		a[i] = mu * (d[i] / dlen - m[i] / mlen);
+}
+
+void massforce(double const p[3], double const m[3], double mu, double a[3], double da[3][3])
+{
+	/**
+	 * fi = mu * ( (mi - pi) / |m - p|^3 - mi / |m|^3 )
+	 * dfi/dxj = mu / |m - p|^3 * ( 3 * (mi - pi) * (mj - pj) / |m - p|^2 - delta(i, j) )	 *
+	 */
+	double d[3];
+	double dr{}, r{};
+	for (std::size_t i{}; i < 3; ++i)
+	{
+		d[i] = m[i] - p[i];
+		dr += sqr(d[i]);
+		r += sqr(m[i]);
+	}
+	r = cube(std::sqrt(r));
+	for (std::size_t i{}; i < 3; ++i)
+	{
+		a[i] = -m[i] / r;
+		for (std::size_t j{}; j < 3; ++j)
+		{
+			da[i][j] = 3 * (m[i] - p[i]) * (m[j] - p[j]) / dr - double(i == j);
+		}
+	}
+	dr = cube(std::sqrt(dr));
+	for (std::size_t i{}; i < 3; ++i)
+	{
+		a[i] += (m[i] - p[i]) / dr;
+		a[i] *= mu;
+		for (std::size_t j{}; j < 3; ++j)
+		{
+			da[i][j] *= mu / dr;
+		}
+	}
 }
 
 double height_above_ellipsoid(const double *v, double r, double f)
@@ -142,7 +177,7 @@ double dpnm(double pnm, double pnm1, size_t n, size_t m, double tanf) noexcept
 
 double ddpnm(double pnm, double pnm1, double pnm2, std::size_t n, std::size_t m, double tanf, double cosf)
 {
-	double out = (sqr(tanf) * m - 1 / sqr(cosf)) * pnm;
+	double out = m * (sqr(tanf) * m - 1 / sqr(cosf)) * pnm;
 	if (m < n)
 	{
 		double mul = (n - m) * (n + m + 1) * delta(m);
@@ -153,7 +188,7 @@ double ddpnm(double pnm, double pnm1, double pnm2, std::size_t n, std::size_t m,
 	return out;
 }
 
-void geopotential::acceleration(const double *in, double *out)
+void geopotential::diffbyxyz(const double *in, double *out)
 {
 	double x = in[0], y = in[1], z = in[2];
 	double xy = std::sqrt(sqr(x) + sqr(y));
@@ -257,7 +292,7 @@ mat3x3 radius_deriv(double r, double drdx, double drdy, double drdz)
 	m *= (1 / r);
 	return m;
 }
-/**
+/**]]]]
  * @brief Вычисление матрицы вторых производных от долготы по x, y, z.
  *
  */
@@ -298,7 +333,7 @@ mat3x3 latitude_deriv(double r, double cosf, double sinf, double tanf, double co
 	return m;
 }
 
-void geopotential::acceleration(double const in[3], double outv[3], double outm[3][3])
+void geopotential::ddiffbyxyz(double const in[3], double outv[3], double outm[3][3])
 {
 	double x = in[0], y = in[1], z = in[2];
 	double xy = std::sqrt(sqr(x) + sqr(y));
@@ -332,16 +367,15 @@ void geopotential::acceleration(double const in[3], double outv[3], double outm[
 	for (size_t n{}, k{}; n <= count; ++n)
 	{
 		double dudr{}, dudf{}, dudl{};
-		double dduddr{}, dduddf{}, dduddl{}, ddudrdf{}, ddudrdl{}, ddudfdl{};
+		double ddudrdr{}, ddudfdf{}, ddudldl{}, ddudrdf{}, ddudrdl{}, ddudfdl{};
 		// Rn(r) = (R / r)^n / r
-		double Rn = mult;
+		double Rn = mult * _r;
 		// dRn(r) = (R / r)^n * -(n + 1) / r
-		double dRn = -Rn * (n + 1);
+		double dRn = -Rn * (n + 1) * _r;
 		// ddRn(r) = (R / r)^n * (n + 1) * (n + 2)
-		double ddRn = dRn * (n + 2);
+		double ddRn = -dRn * (n + 2) * _r;
 		for (size_t m{}; m <= n; ++m, ++k)
 		{
-			double poly = _pnm[k];
 			double cnm = egm::harmonics[k].cos;
 			double snm = egm::harmonics[k].sin;
 			double cosml = _cs[m].cos;
@@ -358,34 +392,34 @@ void geopotential::acceleration(double const in[3], double outv[3], double outm[
 			double dFnm = dpnm(Fnm, _pnm[k + 1], n, m, tanf);
 			// ddFnm(f) = ddPnm(sin(f))/ddf
 			double ddFnm = ddpnm(Fnm, _pnm[k + 1], _pnm[k + 2], n, m, tanf, cosf);
-			dduddr = dudr += Fnm * Lnm;
+			ddudrdr = dudr += Fnm * Lnm;
 			ddudrdf = dudf += dFnm * Lnm;
 			ddudrdl = dudl += Fnm * dLnm;
-			dduddf += ddFnm * Lnm;
-			dduddl += Fnm * ddLnm;
+			ddudfdf += ddFnm * Lnm;
+			ddudldl += Fnm * ddLnm;
 			ddudfdl += dFnm * dLnm;
 		}
-		du[0] = dudr * dRn;
-		du[1] = dudf * Rn;
-		du[2] = dudl * Rn;
-		ddu[0][0] = dduddr * ddRn;
-		ddu[0][1] = ddudrdf * dRn;
-		ddu[0][2] = ddudrdl * dRn;
-		ddu[1][1] = dduddf * Rn;
-		ddu[2][2] = dduddl * Rn;
-		ddu[1][2] = ddudfdl * Rn;
+		du[0] += dudr * dRn;
+		du[1] += dudf * Rn;
+		du[2] += dudl * Rn;
+		ddu[0][0] += ddudrdr * ddRn;
+		ddu[0][1] += ddudrdf * dRn;
+		ddu[0][2] += ddudrdl * dRn;
+		ddu[1][1] += ddudfdf * Rn;
+		ddu[2][2] += ddudldl * Rn;
+		ddu[1][2] += ddudfdl * Rn;
 		mult *= R_r;
 	}
 	// умножаем на постоянную часть
-	du[0] *= _rsqr;
-	du[1] *= _r;
-	du[2] *= _r;
-	ddu[0][0] *= _rsqr * _r;
-	ddu[0][1] *= _rsqr;
-	ddu[0][2] *= _rsqr;
-	ddu[1][1] *= _r;
-	ddu[2][2] *= _r;
-	ddu[1][2] *= _r;
+	// du[0] *= _rsqr;
+	// du[1] *= _r;
+	// du[2] *= _r;
+	// ddu[0][0] *= _rsqr * _r;
+	// ddu[0][1] *= _rsqr;
+	// ddu[0][2] *= _rsqr;
+	// ddu[1][1] *= _r;
+	// ddu[2][2] *= _r;
+	// ddu[1][2] *= _r;
 	// умножаем на гравитационный множитель
 	du *= egm::mu;
 	ddu *= egm::mu;
@@ -394,10 +428,7 @@ void geopotential::acceleration(double const in[3], double outv[3], double outm[
 	ddu[2][0] = ddu[0][2];
 	ddu[2][1] = ddu[1][2];
 	// перевод к системе координат x, y, z
-	ddu = drfl_t * ddu * drfl;
-	ddu += ddr * du[0];
-	ddu += ddf * du[1];
-	ddu += ddl * du[2];
+	ddu = drfl_t * ddu * drfl + ddr * du[0] + ddf * du[1] + ddl * du[2];
 	du = drfl_t * du;
 
 	for (std::size_t r{}; r < 3; ++r)
@@ -408,4 +439,58 @@ void geopotential::acceleration(double const in[3], double outv[3], double outm[
 			outm[r][c] = ddu[r][c];
 		}
 	}
+}
+
+void geopotential::diffbysph(double const in[3], double out[3])
+{
+	double sinf = std::sin(in[1]), cosf = std::cos(in[1]), tanf{sinf / cosf};
+	double sinl = std::sin(in[2]), cosl = std::cos(in[2]);
+	double _r{1 / in[0]};
+	double _rsqr = sqr(_r);
+	double R_r{egm::rad * _r};
+	double mult{1};
+	// вектор производных потенциала
+	vec3 du;
+	// старшая гармоника
+	size_t count = _cs.size() - 1;
+	calc_trigonometric(cosl, sinl, _cs.data(), count);
+	calc_polynomials(cosf, sinf, _pnm.data(), count);
+	for (size_t k{}, n{}; n <= count; ++n)
+	{
+		double dudr{}, dudf{}, dudl{};
+		// Rn(r) = (R / r)^n / r
+		double Rn = mult;
+		// dRn(r) = (R / r)^n * -(n + 1) / r
+		double dRn = -Rn * (n + 1);
+		for (size_t m{}; m <= n; ++m, ++k)
+		{
+			double poly = _pnm[k];
+			double cnm = egm::harmonics[k].cos;
+			double snm = egm::harmonics[k].sin;
+			double cosml = _cs[m].cos;
+			double sinml = _cs[m].sin;
+			// Lnm(l) = Cnm * cos(ml) + Snm * sin(ml)
+			double Lnm = cnm * cosml + snm * sinml;
+			// dLnm(l)/dl = m * (Snm * cos(ml) - Cnm * sin(ml))
+			double dLnm = m * (snm * cosml - cnm * sinml);
+			// Fnm(f) = Pnm(sin(f))
+			double Fnm = _pnm[k];
+			// dFnm(f) = dPnm(sin(f))/df
+			double dFnm = dpnm(Fnm, _pnm[k + 1], n, m, tanf);
+			dudr += Fnm * Lnm;
+			dudf += dFnm * Lnm;
+			dudl += Fnm * dLnm;
+		}
+		du[0] += dudr * dRn;
+		du[1] += dudf * Rn;
+		du[2] += dudl * Rn;
+		mult *= R_r;
+	}
+	// умножаем на постоянную часть
+	du[0] *= _rsqr;
+	du[1] *= _r;
+	du[2] *= _r;
+	// умножаем на гравитационный множитель
+	du *= egm::mu;
+	std::memcpy(out, du.data(), sizeof(du));
 }

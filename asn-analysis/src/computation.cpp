@@ -22,48 +22,88 @@ public:
     }
 };
 
-class model_measurer : public math::measurer
+class model_measurer : public math::residuals_provider
 {
     std::vector<motion_measurement>::const_iterator _begin, _end;
-    rotator _rotator;
-    std::vector<geometry> const &_geometries;
+    // rotator _rotator;
+    // std::vector<geometry> const &_geometries;
 
 public:
     model_measurer(std::vector<motion_measurement>::const_iterator mbegin,
-                   std::vector<motion_measurement>::const_iterator mend,
-                   std::vector<rotation_measurement>::const_iterator rbegin,
-                   std::vector<rotation_measurement>::const_iterator rend,
-                   std::vector<geometry> const &geometries)
-        : _begin{mbegin}, _end{mend},
-          _rotator{rbegin, rend},
-          _geometries{geometries}
+                   std::vector<motion_measurement>::const_iterator mend)
+        : _begin{mbegin},
+          _end{mend}
     {
-        _end = std::lower_bound(_begin, _end, _begin->t + std::chrono::days(1),
-                                [](motion_measurement const &m, time_type t)
-                                { return m.t < t; });
     }
+    // model_measurer(std::vector<motion_measurement>::const_iterator mbegin,
+    //                std::vector<motion_measurement>::const_iterator mend,
+    //                std::vector<rotation_measurement>::const_iterator rbegin,
+    //                std::vector<rotation_measurement>::const_iterator rend,
+    //                std::vector<geometry> const &geometries)
+    //     : model_measurer(mbegin, mend),
+    //       _rotator{rbegin, rend},
+    //       _geometries{geometries}
+    // {
+    // }
     math::vector get_residuals(math::vector const &v) const override
     {
-        math::vec6 mv;
-        std::copy(v.begin(), v.begin() + 6, mv.data());
-        auto f = make_forecast(mv,
-                               std::chrono::system_clock::to_time_t(_begin->t),
-                               std::chrono::system_clock::to_time_t((_end - 1)->t),
-                               v[6],
-                               _geometries,
-                               _rotator);
+        auto f = _make_forecast(v);
         math::vector rv(std::distance(_begin, _end) * 6);
         std::size_t index{};
         for (auto iter = _begin; iter != _end; ++iter)
         {
-            auto &m = *iter;
-            auto p = f.point(std::chrono::system_clock::to_time_t(m.t));
+            auto p = f.point(time_to_number(iter->t));
             for (std::size_t i{}; i < 6; ++i)
             {
-                rv[index++] = m.v[i] - p[i];
+                rv[index++] = iter->v[i] - p[i];
             }
         }
         return rv;
+    }
+
+    void get_residuals_and_derivatives(math::vector const &v, math::vector &rv, math::matrix &dm) const
+    {
+        auto f = _make_forecastext(v);
+        rv = math::vector(6 * std::distance(_begin, _end));
+        dm = math::matrix(v.size(), rv.size());
+        std::size_t index{};
+        for (auto iter = _begin; iter != _end; ++iter)
+        {
+            auto p = f.point(time_to_number(iter->t));
+            for (std::size_t i{}; i < 6; ++i)
+            {
+                rv[index] = iter->v[i] - p[i];
+                for (std::size_t j{}; j < dm.rows(); ++j)
+                {
+                    dm[j][index] = p[6 + j * v.size() + i];
+                }
+                ++index;
+            }
+        }
+    }
+
+private:
+    forecast _make_forecast(math::vector const &in) const
+    {
+        math::vec6 v;
+        std::memcpy(v.data(), in.data(), sizeof(v));
+        return make_forecast(v,
+                             _begin->t,
+                             (_end - 1)->t,
+                             in[6]);
+    }
+    forecastext _make_forecastext(math::vector const &in) const
+    {
+        vec55 v;
+        std::memcpy(v.data(), in.data(), sizeof(double) * 6);
+        for (auto ptr = v.data() + 6; ptr < v.data() + v.size(); ptr += in.size() + 1)
+        {
+            *ptr = 1;
+        }
+        return make_forecast(v,
+                             _begin->t,
+                             (_end - 1)->t,
+                             in[6]);
     }
 };
 
@@ -112,6 +152,10 @@ public:
     {
         _pos += 6;
         return *this;
+    }
+    friend std::size_t distance(residual_iterator const &begin, residual_iterator const &end)
+    {
+        return (end._pos - begin._pos) / 6;
     }
 };
 
@@ -177,7 +221,8 @@ auto end_velocity(math::vector const &v)
 
 void print_mean_std(std::ostream &os, double mean, double std)
 {
-    os << "среднее значение = " << mean << " СКО = " << std << std::endl;
+    // os << "среднее значение = " << mean << " СКО = " << std << std::endl;
+    os << "медиана = " << mean << " СКО = " << std << std::endl;
 }
 
 std::ostream &operator<<(std::ostream &os, math::iteration const &iter)
@@ -225,13 +270,35 @@ void print_velocity_residual(std::ostream &os, double mean, double std)
     print_mean_std(os, mean, std);
 }
 
-void print_statistic_(std::ostream &os, math::iteration const &iter)
+template <typename iterator>
+double get_median(iterator begin, iterator end)
+{
+    std::vector<double> arr;
+    while (begin != end)
+    {
+        arr.push_back(*begin);
+        ++begin;
+    }
+    std::sort(std::begin(arr), std::end(arr));
+    return arr[arr.size() / 2];
+}
+
+template <typename iterator>
+void median_std(double &mean, double &std, iterator begin, iterator end)
+{
+    math::mean_std(mean, std, begin, end);
+    mean = get_median(begin, end);
+}
+
+auto print_statistic_(std::ostream &os, math::iteration const &iter)
 {
     auto &v = iter.rv;
     double rad_mean{}, rad_std{};
     double vel_mean{}, vel_std{};
-    math::mean_std(rad_mean, rad_std, begin_radiusvec(v), end_radiusvec(v));
-    math::mean_std(vel_mean, vel_std, begin_velocity(v), end_velocity(v));
+    // math::mean_std(rad_mean, rad_std, begin_radiusvec(v), end_radiusvec(v));
+    // math::mean_std(vel_mean, vel_std, begin_velocity(v), end_velocity(v));
+    median_std(rad_mean, rad_std, begin_radiusvec(v), end_radiusvec(v));
+    median_std(vel_mean, vel_std, begin_velocity(v), end_velocity(v));
     print_radiusvec_residual(os, rad_mean, rad_std);
     print_velocity_residual(os, vel_mean, vel_std);
 }
@@ -262,27 +329,42 @@ void show_figure(computation_logger const &logger)
     figure_provider::show_residuals(x.data(), y1.data(), x.data(), y2.data(), x.size());
 }
 
-void application_configurer::compute() const
+template <typename iterator>
+std::size_t filtrate(std::vector<motion_measurement> &measurements, iterator begin, iterator end)
 {
-    auto os = open_outfile(_computation_filepath);
-    os << std::fixed;
-    math::vector v(vecsize);
-    std::copy(_mbegin->v, _mbegin->v + 6, v.begin());
-    std::size_t iterations{20};
-    model_measurer meas{_mbegin, _mend, _rbegin, _rend, _geometries};
-    model_variator var;
+    double median = get_median(begin, end);
+    std::size_t index{}, count{};
+    for (; begin != end; ++begin, ++index)
+    {
+        if (*begin >= 3 * median)
+        {
+            measurements.erase(measurements.begin() + index);
+            ++count;
+        }
+    }
+    return count;
+}
+
+void filtrate(std::vector<motion_measurement> &measurements, math::iteration const &iter, std::ostream &os)
+{
+    os << "Отбракованные измерения:\n";
+    os << "По радиусу-вектору " << filtrate(measurements, begin_radiusvec(iter.rv), end_radiusvec(iter.rv)) << std::endl;
+    os << "По модулю скорости " << filtrate(measurements, begin_velocity(iter.rv), end_velocity(iter.rv)) << std::endl;
+}
+
+void compute_motion(math::vector v,
+                    std::vector<motion_measurement> &measurements,
+                    std::ostream &os,
+                    bool filtration = false)
+{
+    constexpr std::size_t iterations{20};
+    std::exception_ptr exptr;
+    model_measurer meas{std::begin(measurements), std::end(measurements)};
     computation_logger logger;
     logger.reserve(iterations);
-    os << "T = ";
-    write_to_stream(os, _mbegin->t);
-    os << std::endl
-       << "Исходные параметры движения ";
-    print_vec<vecsize>(os, v.data());
-    os << std::endl;
-    std::exception_ptr exptr;
     try
     {
-        math::levmarq(v, meas, var, nullptr, &logger, 1e-2, iterations);
+        math::levmarq(v, meas, &logger, 1e-3, iterations);
     }
     catch (const std::exception &ex)
     {
@@ -301,10 +383,43 @@ void application_configurer::compute() const
         print_statistic_(os, logger.back());
         os << std::endl;
         print_iterations(os, logger);
-        show_figure(logger);
+        if (!filtration)
+            show_figure(logger);
     }
     if (exptr)
     {
         std::rethrow_exception(exptr);
     }
+    if (filtration)
+    {
+        filtrate(measurements, logger.back(), os);
+    }
+}
+
+auto end_iterator(std::vector<motion_measurement>::const_iterator begin,
+                  std::vector<motion_measurement>::const_iterator end)
+{
+    return std::lower_bound(begin, end, begin->t + std::chrono::days(1),
+                            [](motion_measurement const &m, time_type t)
+                            { return m.t < t; });
+}
+
+void application_configurer::compute() const
+{
+    std::vector<motion_measurement> measurements(_mbegin, end_iterator(_mbegin, _mend));
+    math::vector v(vecsize);
+    std::copy(_mbegin->v, _mbegin->v + 6, v.begin());
+    model_measurer meas{std::begin(measurements), std::end(measurements)}; //, _rbegin, _rend, _geometries};
+    computation_logger logger;
+    auto os = open_outfile(_computation_filepath);
+    os << std::fixed;
+    os << "T = ";
+    write_to_stream(os, _mbegin->t);
+    os << std::endl
+       << "Исходные параметры движения ";
+    print_vec<vecsize>(os, v.data());
+    os << std::endl;
+    compute_motion(v, measurements, os, true);
+    os << std::endl;
+    compute_motion(v, measurements, os);
 }

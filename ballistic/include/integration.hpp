@@ -31,7 +31,7 @@ namespace math
 		D _step;
 
 		constexpr static std::size_t degree{8};
-		constexpr static std::size_t ratio{6};
+		constexpr static std::size_t ratio{1};
 		constexpr static D zero{};
 
 	public:
@@ -59,7 +59,7 @@ namespace math
 			if (step == zero)
 				throw_invalid_argument("Шаг интегрирования должен быть отличен от нуля.");
 			if ((step > zero) != (tk > tn))
-				throw_invalid_argument("Знак щага интегрирования не соответствует знаку промежутка интегрирования.");
+				throw_invalid_argument("Знак шага интегрирования не соответствует знаку промежутка интегрирования.");
 			auto count = static_cast<std::size_t>((tk - tn) / step) + 1;
 			_points.resize(count);
 			_points.front() = {v, tn};
@@ -101,15 +101,11 @@ namespace math
 			T tn = _points.front().t;
 			T tk = _points.back().t;
 			if (count < degree)
-			{
 				throw_invalid_argument("Степень аппроксимации превосходит кол-во доступных точек.");
-			}
 			// индекс первой точки для аппроксимации
 			auto index = static_cast<std::size_t>((t - tn) / _step);
 			if (index > count)
-			{
 				throw_invalid_argument("Момент времени находится за пределами интервала интегрирования.");
-			}
 			index -= min_of(index, degree / 2);
 			index = min_of(index, count - degree);
 			// P(t) = sum{n = 0..dim} (mult{k = 0..dim, k != n} (t - t_k)/(t_n - t_k)) x_n
@@ -134,17 +130,18 @@ namespace math
 
 	private:
 		template <typename F>
-		pair rk4(pair const &in, D const &delta, F &func)
+		pair rk4(pair const &in, D const &step, F &func)
 		{
 			pair out{};
-			double step = static_cast<double>(delta), step_2 = 0.5 * step, step_6 = step_2 / 3;
-			T t = in.t + delta / 2;
-			out.t = in.t + delta;
+			D step_2 = step / 2, step_6 = step / 6;
+			T t = in.t + step_2;
+			out.t = in.t + step;
 			V k1 = func(in.v, in.t);
 			V k2 = func(in.v + k1 * step_2, t);
 			V k3 = func(in.v + k2 * step_2, t);
 			V k4 = func(in.v + k3 * step, out.t);
-			out.v = in.v + (k1 + (k2 + k3) * 2.0 + k4) * step_6;
+			V ks = k1 + (k2 + k3) * 2.0 + k4;
+			out.v = in.v + ks * step_6;
 			return out;
 		}
 

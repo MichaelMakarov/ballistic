@@ -1,32 +1,13 @@
-function (update_submodules required_submodules update_options)
-	find_package(Git QUIET)
-	if (GIT_FOUND)
-		message(STATUS "intializing submodules")
-		foreach (submodule ${required_submodules})
-			set(submodule_path "${CMAKE_SOURCE_DIR}/external/${submodule}")
-			if (NOT EXISTS "${submodule_path}/CMakeLists.txt")
-				message(STATUS "updating ${submodule_path}")
-				execute_process(COMMAND ${GIT_EXECUTABLE} submodule update ${update_options} -- ${submodule_path})
-			endif()
-		endforeach()
+# updates a submodule using specified options
+function (update_submodule submodule options)
+	set (submodule_path "${CMAKE_CURRENT_SOURCE_DIR}/${submodule}")
+	if (NOT EXISTS "${submodule_path}/CMakeLists.txt")
+		find_package(Git QUIET)
+		if (GIT_FOUND)
+			message(STATUS "Updating ${submodule_path}")
+			execute_process(COMMAND ${GIT_EXECUTABLE} submodule update ${update_options} -- ${submodule_path} WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
+		else()
+			message(STATUS "Failed to update submodule ${submodule_path}. Do it manually.")
+		endif()
 	endif()
-endfunction()
-
-function(add_external_project projname srcdir)
-	ExternalProject_Add(
-		${projname}
-		SOURCE_DIR ${srcdir}
-		PREFIX ${projname}
-		INSTALL_COMMAND ""
-	)
-endfunction()
-
-function(copydllfiles target_name)
-    add_custom_command(
-        TARGET ${target_name}
-        POST_BUILD 
-        COMMAND ${CMAKE_COMMAND} 
-        -DBINARY_DIR=${CMAKE_BINARY_DIR}
-        -P ${CMAKE_SOURCE_DIR}/scripts/copydll.cmake 
-    )
 endfunction()

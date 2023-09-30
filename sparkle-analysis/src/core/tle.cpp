@@ -34,15 +34,15 @@ orbit_data elsetrec_to_observation(elsetrec trec)
     obs.t += std::chrono::hours(hour);
     obs.t += std::chrono::minutes(minute);
     obs.t += std::chrono::milliseconds(static_cast<int>(sec * 1e3));
-    double buf[6]{};
+    double buf[6];
     if (!SGP4Funcs::sgp4(trec, 0, buf, buf + 3))
     {
-        throw std::runtime_error("не удалось выполнить процедуру приведения tle-параметров к вектору состояния по модели SGP4.");
+        throw std::runtime_error("Не удалось выполнить процедуру приведения tle-параметров к вектору состояния по модели SGP4.");
     }
-    auto st = sidereal_time(std::chrono::system_clock::to_time_t(obs.t));
-    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, st, egm::angv, obs.v);
-    for (double &e : obs.v)
+    for (double &e : buf)
         e *= 1e3; // приведение к м и м/с
+    double st = sidereal_time(std::chrono::system_clock::to_time_t(obs.t));
+    transform<abs_cs, ort_cs, grw_cs, ort_cs>::forward(buf, buf + 3, st, egm::angv, obs.v, obs.v + 3);
     return obs;
 }
 

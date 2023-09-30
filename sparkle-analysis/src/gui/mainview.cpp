@@ -20,7 +20,7 @@ constexpr QSize min_size{400, 200};
 
 mainview::mainview(QWidget *const parent) : QMainWindow(parent)
 {
-    setWindowTitle("Окно уточнения параметров движения и вращения");
+    setWindowTitle("Окно уточнения параметров движения");
     // класс для расчётов
     _model = new computational_model(this);
 
@@ -176,11 +176,11 @@ void mainview::on_compute_clicked()
             }
         }
         _model->compute(filename.toStdString());
-        show_info("Расчёт завершён.");
+        show_info("Расчёт завершён. Промежуточные вычисления записаны в " + filename);
     }
     catch (const std::exception &error)
     {
-        show_error(error.what());
+        show_error(error.what() + ("Промежуточные вычисления записаны в " + filename));
     }
     button->setEnabled(true);
 }

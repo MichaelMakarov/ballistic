@@ -9,6 +9,7 @@
 using days_ratio_t = std::ratio_multiply<std::ratio<24>, std::ratio<3600>>;
 
 void run_optimization(measuring_interval const &inter, orbit_data &data, std::ostream &os);
+void run_optimization_s(measuring_interval const &inter, orbit_data &d, std::ostream &os);
 
 bool cmp_to_be_earlier(const observation_seance &elem, time_type t)
 {
@@ -62,7 +63,7 @@ public:
         {
             throw std::runtime_error(std::format("Недостаточное кол-во измерений {} на интервале {} - {}.", number, tn, tk));
         }
-        run_optimization(inter, tle, os);
+        run_optimization_s(inter, tle, os);
     }
 
 private:

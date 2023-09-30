@@ -113,7 +113,7 @@ public:
 	 * @param in вектор в ГСК (x, y, z) [м]
 	 * @param out вектор (du/dx, du/dy, du/dz)
 	 */
-	void acceleration(const double in[3], double out[3]);
+	void diffbyxyz(const double in[3], double out[3]);
 	/**
 	 * @brief Вычисление вектора из производных потенциала и матрицы вторых производных по координатам.
 	 *
@@ -121,7 +121,9 @@ public:
 	 * @param outv вектор производных потенциала (du/dx, du/dy, du/dz)
 	 * @param outm матрица вторых производных ((ddu/ddx, ddu/dxdy, ddu/dxdz), (ddu/dydx, ddu/ddy, ddudydz), (ddu/dzdx, ddu/dzdy, ddu/ddz))
 	 */
-	void acceleration(double const in[3], double outv[3], double outm[3][3]);
+	void ddiffbyxyz(double const in[3], double outv[3], double outm[3][3]);
+
+	void diffbysph(double const in[3], double out[3]);
 };
 
 /**
@@ -187,7 +189,17 @@ struct lunar_model
  * @param mu гравитационная постоянная тела
  * @param a ускорение (x, y, z) [м/с]
  */
-void mass_acceleration(const double *p, const double *m, double mu, double *a);
+void massforce(const double p[3], const double m[3], double mu, double a[3]);
+/**
+ * @brief Ускорение центрального поля сил.
+ *
+ * @param p точка, в которой рассчитаывается ускорение, (x, y, z) (м)
+ * @param m центр притягивающего тела (x, y, z) (м)
+ * @param mu гравитационная постоянная тела
+ * @param a ускорение притяжения
+ * @param da проивзодные ускорения
+ */
+void massforce(double const p[3], double const m[3], double mu, double a[3], double da[3][3]);
 
 /**
  * @brief Звездное время
