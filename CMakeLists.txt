@@ -6,7 +6,7 @@ project(ballistic_projects)
 find_package(CURL REQUIRED)
 include(scripts/functions.cmake)
 
-update_submodule(pugixml --init)
+update_cmake_submodule(pugixml --init)
 
 set(BUILD_SHARED_LIBS OFF CACHE INTERNAL "" FORCE)
 

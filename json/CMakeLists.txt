@@ -5,7 +5,7 @@ project(json_library)
 
 if (NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/yas/include)
     message(STATUS "init ${CMAKE_CURRENT_SOURCE_DIR}/yas")
-    execute_process(COMMAND ${GIT_EXECUTABLE} submodule update --init -- ${CMAKE_CURRENT_SOURCE_DIR}/yas WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
+    update_submodule(yas --init)
 endif()
 
 add_library(jsonlib INTERFACE)
