@@ -1,9 +1,9 @@
 #include <motion.hpp>
+
 #include <forecast.hpp>
 #include <transform.hpp>
 #include <ball.hpp>
 #include <optimization.hpp>
-#include <ostream>
 
 constexpr std::size_t _res_size{2};
 
@@ -14,103 +14,6 @@ constexpr double vararr[]{
     .25,
     .25,
     .25,
-};
-
-template <std::size_t _index, bool = _index<_res_size> class residual_iterator;
-
-template <std::size_t _index>
-class residual_iterator<_index, true>
-{
-    math::vector const *_v;
-    std::size_t _offset;
-
-public:
-    residual_iterator(math::vector const &v, std::size_t offset) : _v{&v}, _offset{offset}
-    {
-    }
-    residual_iterator(residual_iterator const &) = default;
-    residual_iterator &operator=(residual_iterator const &) = default;
-    residual_iterator &operator++()
-    {
-        _offset += _res_size;
-        return *this;
-    }
-    double operator*() const
-    {
-        return (*_v)[_offset + _index];
-    }
-    bool operator!=(residual_iterator const &other) const
-    {
-        return _v != other._v || _offset != other._offset;
-    }
-};
-
-std::ostream &operator<<(std::ostream &os, math::vector const &v)
-{
-    for (std::size_t i{}; i < v.size(); ++i)
-    {
-        os << v[i] << ' ';
-    }
-    return os;
-}
-
-std::ostream &operator<<(std::ostream &os, math::iteration const &iter)
-{
-    os << "Итерация №" << iter.n << '\n';
-    os << "Ф-ция невязок " << math::rad_to_deg(iter.r) << '\n';
-    os << "Вектор параметров " << iter.v << '\n';
-    os << "Вектор поправок " << iter.dv << '\n';
-    return os;
-}
-
-void print_stat(std::ostream &os, char const *name, double mean, double std)
-{
-    os << name << " \t среднее значение " << math::rad_to_deg(mean) << "град \t СКО " << math::rad_to_deg(std) << "град\n";
-}
-
-void print_stat_info(std::ostream &os, math::iteration const &iter)
-{
-    double mean, std;
-    math::mean_std(mean, std, residual_iterator<0>(iter.rv, 0), residual_iterator<0>(iter.rv, iter.rv.size()));
-    print_stat(os, "Склонение:\t", mean, std);
-    math::mean_std(mean, std, residual_iterator<1>(iter.rv, 0), residual_iterator<1>(iter.rv, iter.rv.size()));
-    print_stat(os, "Восхождение:\t", mean, std);
-}
-
-class optimization_logger : public math::iterations_saver
-{
-    std::ostream &_os;
-    math::iteration _first, _last;
-    std::size_t _iter_index{};
-
-public:
-    optimization_logger(std::ostream &os, measuring_interval const &inter) : _os{os}
-    {
-        _os << std::fixed << std::chrono::system_clock::now() << " Начало записи протокола вычислений.\n\n";
-        _os << "Мерный интервал: " << inter.tn() << " - " << inter.tk() << " " << inter.points_count() << " измерений.\n";
-    }
-    ~optimization_logger()
-    {
-        _os << "Статистические параметры невязок.\n";
-        _os << "На первой итерации\n";
-        print_stat_info(_os, _first);
-        _os << "На последней итерации (" << _last.n << ")\n";
-        print_stat_info(_os, _last);
-        _os << "\n\nОкончание записи протокола вычислений. " << std::chrono::system_clock::now();
-    }
-    void save(math::iteration &&iter)
-    {
-        _os << iter << '\n';
-        if (_iter_index == 0)
-        {
-            _first = std::move(iter);
-        }
-        else
-        {
-            _last = std::move(iter);
-        }
-        ++_iter_index;
-    }
 };
 
 double absmin(double left, double right)
@@ -177,15 +80,6 @@ public:
         };
     }
 };
-
-void run_optimization(measuring_interval const &inter, orbit_data &data, std::ostream &os)
-{
-    math::vector v = make_vector(data, 6);
-    model_measurer meas{inter, data.t};
-    parameters_variator var;
-    optimization_logger log{os, inter};
-    math::levmarq(v, meas, var, nullptr, &log, 1e-5);
-}
 
 void diffsphbyxyz(double const xyz[3], double df[3], double dl[3])
 {
@@ -283,10 +177,17 @@ private:
     }
 };
 
-void run_optimization_s(measuring_interval const &inter, orbit_data &d, std::ostream &os)
+void run_optimization(measuring_interval const &inter, orbit_data &data, math::iterations_saver &saver, std::size_t iter_count)
+{
+    math::vector v = make_vector(data, 6);
+    model_measurer meas{inter, data.t};
+    parameters_variator var;
+    math::levmarq(v, meas, var, nullptr, &saver, 1e-5, iter_count);
+}
+
+void run_optimization_s(measuring_interval const &inter, orbit_data &d, math::iterations_saver &saver, std::size_t iter_count)
 {
     math::vector v = make_vector(d, 7);
     motion_residuals res{inter, d.t};
-    optimization_logger log{os, inter};
-    math::levmarq(v, res, &log, 1e-5);
+    math::levmarq(v, res, &saver, 1e-5, iter_count);
 }

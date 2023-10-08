@@ -4,6 +4,8 @@
 #include <pathview.hpp>
 #include <mainmodel.hpp>
 #include <datamodel.hpp>
+#include <graphic_window.hpp>
+
 #include <qlayout.h>
 #include <qstatusbar.h>
 #include <qgroupbox.h>
@@ -160,6 +162,56 @@ void mainview::on_load_measurements_clicked() const
     }
 }
 
+auto make_graphic_window(optimization_logger const *logger)
+{
+    auto constexpr aname{"|a|, град"};
+    auto constexpr iname{"|i|, град"};
+    auto wnd = new graphic_window;
+    figure_info info;
+    info.xaxis.name = "Невязки";
+    auto residuals = logger->get_first_iteration_residuals();
+    std::vector<double> xarr(residuals.size());
+    std::vector<double> yarr(residuals.size());
+    info.points.count = residuals.size();
+    info.points.xarr = xarr.data();
+    info.points.yarr = yarr.data();
+
+    info.title = "Невязки по склонению на первой итерации";
+    info.yaxis.name = iname;
+    for (std::size_t i{}; i < residuals.size(); ++i)
+    {
+        xarr[i] = i;
+        yarr[i] = math::rad_to_deg(residuals[i].i);
+    }
+    wnd->add_figure(0, 0, info);
+
+    info.title = "Невязки по восхождению на первой итерации";
+    info.yaxis.name = aname;
+    for (std::size_t i{}; i < residuals.size(); ++i)
+    {
+        yarr[i] = math::rad_to_deg(residuals[i].a);
+    }
+    wnd->add_figure(0, 1, info);
+
+    info.title = "Невязки по восхождению на последней итерации";
+    residuals = logger->get_last_iteration_residuals();
+    for (std::size_t i{}; i < residuals.size(); ++i)
+    {
+        yarr[i] = math::rad_to_deg(residuals[i].a);
+    }
+    wnd->add_figure(1, 1, info);
+
+    info.title = "Невязки по склонению на последней итерации";
+    info.yaxis.name = iname;
+    for (std::size_t i{}; i < residuals.size(); ++i)
+    {
+        yarr[i] = math::rad_to_deg(residuals[i].i);
+    }
+    wnd->add_figure(1, 0, info);
+
+    return wnd;
+}
+
 void mainview::on_compute_clicked()
 {
     auto button = _comp;
@@ -177,6 +229,11 @@ void mainview::on_compute_clicked()
         }
         _model->compute(filename.toStdString());
         show_info("Расчёт завершён. Промежуточные вычисления записаны в " + filename);
+        auto wnd = make_graphic_window(_model->get_logger());
+        wnd->setParent(this);
+        wnd->setWindowFlag(Qt::WindowType::Window, true);
+        wnd->setWindowTitle("Окно отображения невязок");
+        wnd->showMaximized();
     }
     catch (const std::exception &error)
     {

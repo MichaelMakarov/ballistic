@@ -9,6 +9,7 @@ set(
 	src/core/models.cpp
 	src/core/interval.cpp
 	src/core/motion.cpp
+	src/core/logger.cpp
 	# src/core/rotation.cpp
 	src/core/forecast.cpp
 	# src/core/formatoutput.cpp	
@@ -47,5 +48,6 @@ target_link_libraries(
 	utility 
 	mathlib 
 	parallel
+	graphic
 	Qt5::Widgets
 )

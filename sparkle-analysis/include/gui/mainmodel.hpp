@@ -1,24 +1,23 @@
 #pragma once
+
+#include <logger.hpp>
+#include <observation.hpp>
+
 #include <qobject.h>
 
-struct orbit_data;
-struct observation_seance;
+#include <memory>
 
 class computational_model : public QObject
 {
     Q_OBJECT
 
-    /**
-     * @brief Класс для вычислений
-     */
-    class ballistic_computer *_computer;
-    /**
-     * @brief Длина мерного интервала в сутках
-     */
+    /// @brief Класс для вычислений
+    std::unique_ptr<class ballistic_computer> _computer;
+    /// @brief Логировщик
+    std::unique_ptr<optimization_logger> _logger;
+    /// @brief Интервал в сутках
     double _interval{1};
-    /**
-     * @brief Индекс опорного ТЛЕ
-     */
+    /// @brief Индекс опорного ТЛЕ
     int _index{0};
 
 public:
@@ -26,21 +25,14 @@ public:
     ~computational_model();
     /**
      * @brief Чтение данных о ГПЗ из файла.
-     *
-     * @param filename
      */
     void read_gpt() const;
     /**
      * @brief Чтение массива ТЛЕ из файла.
-     *
-     * @param filename
      */
     void read_tle() const;
     /**
      * @brief Чтение данных измерений.
-     *
-     * @param mfilename файл с сеансами измерений
-     * @param ofilename файл с обсерваториями
      */
     void read_measurements() const;
     /**
@@ -59,7 +51,7 @@ public:
      * @brief Запуск вычислений
      *
      */
-    void compute(const std::string &filename) const;
+    void compute(const std::string &filename);
     /**
      * @brief Возвращает ТЛЕ по инлексу.
      *
@@ -86,7 +78,9 @@ public:
      * @return int
      */
     int seance_count() const;
-    
+
+    optimization_logger const *get_logger() const;
+
 signals:
     /**
      * @brief Сигнал о том, что ТЛЕ загружены

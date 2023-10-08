@@ -12,5 +12,9 @@ public:
     void add_figure(unsigned row, unsigned column, figure_info const &info);
 
 private:
-    class QGridLayout *get_layout() const;
+    void save_graphic();
+
+private:
+    class QGridLayout *_grid;
+    QWidget *_wgt;
 };

@@ -1,15 +1,15 @@
 #include <mainmodel.hpp>
 #include <interval.hpp>
 #include <settings.hpp>
+#include <motion.hpp>
+
 #include <fileutils.hpp>
 #include <maths.hpp>
 #include <ball.hpp>
+
 #include <format>
 
 using days_ratio_t = std::ratio_multiply<std::ratio<24>, std::ratio<3600>>;
-
-void run_optimization(measuring_interval const &inter, orbit_data &data, std::ostream &os);
-void run_optimization_s(measuring_interval const &inter, orbit_data &d, std::ostream &os);
 
 bool cmp_to_be_earlier(const observation_seance &elem, time_type t)
 {
@@ -23,26 +23,14 @@ bool cmp_to_be_later(time_type t, const observation_seance &elem)
 
 class ballistic_computer
 {
-public:
-    /**
-     * @brief Массив данных считанных ТЛЕ
-     *
-     */
-    std::vector<orbit_data> tles;
-    /**
-     * @brief Массив считанных сеансов измерений
-     *
-     */
+public:    
+    /// @brief Массив данных считанных ТЛЕ
+    std::vector<orbit_data> tles;    
+    /// @brief Массив считанных сеансов измерений
     std::vector<observation_seance> seances;
 
 public:
-    /**
-     * @brief Решение задачи оптимизации на мерном интервале
-     *
-     * @param tle_index индекс опорного ТЛЕ
-     * @param interval длина мерного интервала в сек
-     */
-    void compute(size_t tle_index, double days, std::ostream &os)
+    std::unique_ptr<optimization_logger> compute(size_t tle_index, double days, std::size_t iter_count)
     {
         verify();
         // начальные условия из ТЛЕ
@@ -63,7 +51,10 @@ public:
         {
             throw std::runtime_error(std::format("Недостаточное кол-во измерений {} на интервале {} - {}.", number, tn, tk));
         }
-        run_optimization_s(inter, tle, os);
+        // для сохранения итераций
+        auto saver = std::make_unique<optimization_logger>(iter_count, inter);
+        run_optimization_s(inter, tle, *saver, iter_count);
+        return saver;
     }
 
 private:
@@ -84,15 +75,12 @@ private:
     }
 };
 
-computational_model::computational_model(QObject *parent) : QObject(parent)
+computational_model::computational_model(QObject *parent) : QObject(parent),
+                                                            _computer{std::make_unique<ballistic_computer>()}
 {
-    _computer = new ballistic_computer;
 }
 
-computational_model::~computational_model()
-{
-    delete _computer;
-}
+computational_model::~computational_model() = default;
 
 std::istream &operator>>(std::istream &is, potential_harmonic &p)
 {
@@ -151,16 +139,17 @@ int computational_model::seance_count() const
     return static_cast<int>(_computer->seances.size());
 }
 
-void computational_model::compute(const std::string &filename) const
+optimization_logger const *computational_model::get_logger() const
 {
+    return _logger.get();
+}
+
+void computational_model::compute(const std::string &filename)
+{
+    _logger = _computer->compute(static_cast<size_t>(_index), _interval, 20);
     if (!filename.empty())
     {
         auto fout = open_outfile(filename);
-        _computer->compute(static_cast<size_t>(_index), _interval, fout);
-    }
-    else
-    {
-        std::ostream os{nullptr};
-        _computer->compute(static_cast<size_t>(_index), _interval, os);
+        _logger->print(fout);
     }
 }
