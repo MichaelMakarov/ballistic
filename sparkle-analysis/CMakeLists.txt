@@ -1,15 +1,5 @@
-cmake_minimum_required(VERSION 3.12)
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-project(sparkle_analysis)
-
-if (MSVC)
-	add_compile_options(/Zc:__cplusplus)
-endif()
-
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-find_package(Qt5 COMPONENTS Core Widgets Charts REQUIRED)
 
 set(
 	core_sources
@@ -42,19 +32,20 @@ set(
     src/gui/guisrc.qrc
 )
 
-add_executable(
-	${PROJECT_NAME}
+add_executable( 
+	sparkle_analysis
 	src/main.cpp
 	${core_sources}
 	${gui_sources}
 	
  )
-target_include_directories(
-	${PROJECT_NAME} PRIVATE 
-	include/core include/gui 
-)
+target_include_directories(sparkle_analysis PRIVATE include/core include/gui)
 target_link_libraries(	
-	${PROJECT_NAME} 
-	ballistic jsonlib libutility mathlib queue_manager
-	Qt5::Widgets Qt5::Charts 
+	sparkle_analysis PRIVATE 
+	ballistic 
+	json 
+	utility 
+	mathlib 
+	parallel
+	Qt5::Widgets
 )

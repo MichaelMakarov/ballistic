@@ -86,6 +86,7 @@ public:
      * @return int
      */
     int seance_count() const;
+    
 signals:
     /**
      * @brief Сигнал о том, что ТЛЕ загружены

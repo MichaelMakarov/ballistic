@@ -4,6 +4,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 project(ballistic_projects)
 
 find_package(CURL REQUIRED)
+find_package(Qt5 COMPONENTS Core Widgets Charts REQUIRED)
+
 include(scripts/functions.cmake)
 
 update_cmake_submodule(pugixml --init)
@@ -21,3 +23,4 @@ add_subdirectory(protocol)
 add_subdirectory(pugixml)
 add_subdirectory(parallel)
 add_subdirectory(mathlib)
+add_subdirectory(graphic)
