@@ -4,7 +4,7 @@
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
-    mainview wnd;
+    application_window wnd;
     wnd.showMaximized();
     return app.exec();
 }

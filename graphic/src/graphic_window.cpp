@@ -20,7 +20,7 @@ namespace
         series->setColor(QColor(Qt::GlobalColor::blue));
         for (std::size_t i{}; i < info.count; ++i)
         {
-            series->append(info.xarr[i], info.yarr[i]);
+            series->append(info.x_array[i], info.y_array[i]);
         }
         return series;
     }
@@ -38,9 +38,9 @@ namespace
         chart->setTitle(QString::fromStdString(info.title));
         auto series = make_line_series(info.points);
         chart->addSeries(series);
-        auto xaxis = make_value_axis(info.xaxis);
+        auto xaxis = make_value_axis(info.x_axis);
         chart->addAxis(xaxis, Qt::AlignmentFlag::AlignBottom);
-        auto yaxis = make_value_axis(info.yaxis);
+        auto yaxis = make_value_axis(info.y_axis);
         chart->addAxis(yaxis, Qt::AlignmentFlag::AlignLeft);
         series->attachAxis(xaxis);
         series->attachAxis(yaxis);

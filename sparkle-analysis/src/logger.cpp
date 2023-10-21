@@ -1,22 +1,23 @@
 #include <logger.hpp>
+#include <residuals_iterator.hpp>
 
 namespace
 {
     std::size_t constexpr _res_size{2};
 
     template <std::size_t _index>
-    class residual_iterator
+    class residuals_vector_iterator
     {
         math::vector const *_v;
         std::size_t _offset;
 
     public:
-        residual_iterator(math::vector const &v, std::size_t offset) : _v{&v}, _offset{offset}
+        residuals_vector_iterator(math::vector const &v, std::size_t offset) : _v{&v}, _offset{offset}
         {
         }
-        residual_iterator(residual_iterator const &) = default;
-        residual_iterator &operator=(residual_iterator const &) = default;
-        residual_iterator &operator++()
+        residuals_vector_iterator(residuals_vector_iterator const &) = default;
+        residuals_vector_iterator &operator=(residuals_vector_iterator const &) = default;
+        residuals_vector_iterator &operator++()
         {
             _offset += _res_size;
             return *this;
@@ -25,7 +26,7 @@ namespace
         {
             return (*_v)[_offset + _index];
         }
-        bool operator!=(residual_iterator const &other) const
+        bool operator!=(residuals_vector_iterator const &other) const
         {
             return _v != other._v || _offset != other._offset;
         }
@@ -57,38 +58,11 @@ namespace
     void print_stat_info(std::ostream &os, math::iteration const &iter)
     {
         double mean, std;
-        math::mean_std(mean, std, residual_iterator<0>(iter.rv, 0), residual_iterator<0>(iter.rv, iter.rv.size()));
+        math::mean_std(mean, std, residuals_vector_iterator<0>(iter.rv, 0), residuals_vector_iterator<0>(iter.rv, iter.rv.size()));
         print_stat(os, "Склонение:\t", mean, std);
-        math::mean_std(mean, std, residual_iterator<1>(iter.rv, 0), residual_iterator<1>(iter.rv, iter.rv.size()));
+        math::mean_std(mean, std, residuals_vector_iterator<1>(iter.rv, 0), residuals_vector_iterator<1>(iter.rv, iter.rv.size()));
         print_stat(os, "Восхождение:\t", mean, std);
     }
-
-    template <double vec_residual::*field>
-    class field_iterator
-    {
-    public:
-        field_iterator(vec_residual *ptr) : _ptr{ptr} {}
-        field_iterator(field_iterator const &) = default;
-
-        field_iterator &operator=(field_iterator const &) = default;
-
-        field_iterator &operator++()
-        {
-            ++_ptr;
-            return *this;
-        }
-        double& operator*() const
-        {
-            return _ptr->*field;
-        }
-        bool operator!=(field_iterator const &other) const
-        {
-            return _ptr != other._ptr;
-        }
-
-    private:
-        vec_residual *_ptr;
-    };
 
     template <typename input_iterator, typename output_iterator>
     void copy(input_iterator in_begin, input_iterator in_end, output_iterator out_begin) {
@@ -99,11 +73,11 @@ namespace
         }
     }
 
-    std::vector<vec_residual> make_residuals_array(math::vector const &rv) 
+    std::vector<residual_point> make_residuals_array(math::vector const &rv) 
     {
-        std::vector<vec_residual> residuals(rv.size() / _res_size);
-        copy(residual_iterator<0>{rv, 0}, residual_iterator<0>{rv, rv.size()}, field_iterator<&vec_residual::a>{residuals.data()});
-        copy(residual_iterator<1>{rv, 0}, residual_iterator<1>{rv, rv.size()}, field_iterator<&vec_residual::i>{residuals.data()});
+        std::vector<residual_point> residuals(rv.size() / _res_size);
+        copy(residuals_vector_iterator<0>{rv, 0}, residuals_vector_iterator<0>{rv, rv.size()}, residuals_iterator<&residual_point::a>{residuals.data()});
+        copy(residuals_vector_iterator<1>{rv, 0}, residuals_vector_iterator<1>{rv, rv.size()}, residuals_iterator<&residual_point::i>{residuals.data()});
         return residuals;
     }
 }
@@ -138,12 +112,12 @@ void optimization_logger::print(std::ostream &os) const
     os << "\n\nОкончание записи протокола вычислений. " << std::chrono::system_clock::now();
 }
 
-std::vector<vec_residual> optimization_logger::get_first_iteration_residuals() const
+std::vector<residual_point> optimization_logger::get_first_iteration_residuals() const
 {
     return make_residuals_array(_iterations.front().rv);
 }
 
-std::vector<vec_residual> optimization_logger::get_last_iteration_residuals() const
+std::vector<residual_point> optimization_logger::get_last_iteration_residuals() const
 {
     return make_residuals_array(_iterations.back().rv);
 }
