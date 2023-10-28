@@ -1,11 +1,12 @@
 #include <interval.hpp>
+#include <logger.hpp>
 #include <mainmodel.hpp>
 #include <motion.hpp>
-#include <logger.hpp>
 
 #include <ball.hpp>
 #include <fileutils.hpp>
 #include <maths.hpp>
+#include <observation_utils.hpp>
 
 #include <format>
 
@@ -236,16 +237,12 @@ void computational_model::read_gpt(std::string const &filepath) {
     egm::read_harmonics(std::istream_iterator<potential_harmonic>{fin}, {});
 }
 
-std::vector<orbit_data> load_orbit_data(const std::string_view filename);
-
 void computational_model::read_tle(std::string const &filepath) {
-    _computer->tles = load_orbit_data(filepath);
+    _computer->tles = load_tle_observation(filepath);
 }
 
-std::vector<observation_seance> load_brightness_data(std::string_view obs_filename, std::string_view mes_filename);
-
 void computational_model::read_measurements(std::string const &obs_filepath, std::string const &meas_filepath) {
-    _computer->seances = load_brightness_data(obs_filepath, meas_filepath);
+    _computer->seances = load_sparkle_observation_from_json(obs_filepath, meas_filepath);
     _tree_data_provider->update();
 }
 

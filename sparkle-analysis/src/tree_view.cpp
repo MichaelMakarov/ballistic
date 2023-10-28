@@ -69,6 +69,7 @@ namespace {
                 return {};
             }
         }
+        
         Qt::ItemFlags flags(const QModelIndex &index) const {
             if (!index.isValid()) {
                 return Qt::NoItemFlags;

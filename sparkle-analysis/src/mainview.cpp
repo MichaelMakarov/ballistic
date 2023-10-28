@@ -43,6 +43,8 @@ namespace {
     const char *txtfilter{"Текстовый файл (*.txt)"};
     const char *jsonfilter{"Json файл (*.json)"};
 
+    constexpr auto settings_filename{"settings.conf"};
+
     constexpr QSize min_size{400, 200};
 } // namespace
 
@@ -187,11 +189,9 @@ void application_window::on_interval_changed(double days) {
     _model->select_interval(days);
 }
 
-project_settings read_settings();
-
 void application_window::load_settings() {
     try {
-        auto settings = read_settings();
+        auto settings = load_project_settings_from_json(settings_filename);
         _gpt_filepath_view->set_path(settings.gptpath.c_str());
         _tle_filepath_view->set_path(settings.tlepath.c_str());
         _obs_filepath_view->set_path(settings.obspath.c_str());
@@ -205,8 +205,6 @@ void application_window::load_settings() {
     }
 }
 
-void write_settings(project_settings const &);
-
 void application_window::save_settings() {
     try {
         project_settings settings;
@@ -214,7 +212,7 @@ void application_window::save_settings() {
         settings.tlepath = _tle_filepath_view->get_path().toStdString();
         settings.obspath = _obs_filepath_view->get_path().toStdString();
         settings.mespath = _mes_filepath_view->get_path().toStdString();
-        write_settings(settings);
+        save_project_settings_to_json(settings_filename, settings);
     } catch (std::exception const &) {
     }
 }

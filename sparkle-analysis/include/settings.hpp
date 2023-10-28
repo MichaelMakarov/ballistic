@@ -1,25 +1,18 @@
 #pragma once
+
 #include <string>
+#include <string_view>
 
 /**
  * @brief Параметры объекта
  * 
  */
 struct object_info {
-    /**
-     * @brief Масса, кг
-     * 
-     */
+    /// @brief Масса, кг
     double mass;
-    /**
-     * @brief Площадь поверхности диска, м^2
-     * 
-     */
+    /// @brief Площадь поверхности диска, м^2
     double square;
-    /**
-     * @brief Коэффициент отражения поверхности
-     * 
-     */
+    /// @brief Коэффициент отражения поверхности
     double refl;
 };
 
@@ -28,31 +21,16 @@ struct object_info {
  * 
  */
 struct project_settings {
-    /**
-     * @brief Путь к файлу ГПЗ
-     * 
-     */
+    /// @brief Путь к файлу ГПЗ
     std::string gptpath;
-    /**
-     * @brief Путь к файлу TLE
-     * 
-     */
+    /// @brief Путь к файлу TLE
     std::string tlepath;
-    /**
-     * @brief Путь к файлу с обсерваториями
-     * 
-     */
+    /// @brief Путь к файлу с обсерваториями
     std::string obspath;
-    /**
-     * @brief Путь к файлу с измерениями
-     * 
-     */
+    /// @brief Путь к файлу с измерениями
     std::string mespath;
-    /**
-     * @brief Параметры КА
-     * 
-     */
-    object_info object;
 };
 
-extern project_settings settings;
+project_settings load_project_settings_from_json(std::string_view filename);
+
+void save_project_settings_to_json(std::string_view filename, project_settings const &settings);

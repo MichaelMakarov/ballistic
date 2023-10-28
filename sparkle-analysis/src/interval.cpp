@@ -1,4 +1,5 @@
 #include <interval.hpp>
+
 #include <algorithm>
 #include <numeric>
 

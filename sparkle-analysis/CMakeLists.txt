@@ -4,9 +4,6 @@ add_executable(
 	src/main.cpp
 	
 	# core sources
-	src/json.cpp
-	src/SGP4.cpp
-	src/tle.cpp
 	src/models.cpp
 	src/interval.cpp
 	src/motion.cpp
@@ -29,6 +26,7 @@ add_executable(
 target_include_directories(sparkle_analysis PRIVATE include)
 target_link_libraries(	
 	sparkle_analysis PRIVATE 
+	observation
 	ballistic 
 	json 
 	utility 
